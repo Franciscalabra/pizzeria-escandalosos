@@ -143,6 +143,18 @@ class WooCommerceAPI {
               value: item.customizations.specialInstructions
             });
           }
+
+          // Agregar campos de Advanced Product Fields
+          if (item.customizations.productAddons?.length > 0) {
+            item.customizations.productAddons.forEach(addon => {
+              lineItem.meta_data.push({
+                key: addon.key,
+                value: addon.value,
+                display_key: addon.display || addon.key,
+                display_value: addon.value
+              });
+            });
+          }
         }
 
         return lineItem;
