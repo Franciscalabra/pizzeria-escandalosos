@@ -1,6 +1,6 @@
 // src/components/ProductCard/ProductCard.jsx
 import React, { useContext } from 'react';
-import { ShoppingCart, Tag } from 'lucide-react';
+import { ShoppingCart, Tag, Star } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
 import './ProductCard.css';
 
@@ -14,12 +14,6 @@ const ProductCard = ({ product, onCustomize }) => {
     
     // Producto agrupado
     if (product.type === 'grouped') return true;
-    
-    // Categorías que requieren personalización
-    const customizableCategories = ['pizzas', 'combos', 'personalizables'];
-    if (product.categories?.some(cat => 
-      customizableCategories.includes(cat.slug)
-    )) return true;
     
     // Productos con atributos
     if (product.attributes?.length > 0) return true;
@@ -43,20 +37,24 @@ const ProductCard = ({ product, onCustomize }) => {
       // Si necesita personalización y hay un manejador, usarlo
       if (onCustomize && typeof onCustomize === 'function') {
         onCustomize(product);
-      } else {
-        // Si no hay manejador, mostrar alerta
-        alert('Este producto requiere personalización. Por favor, selecciona las opciones desde el menú.');
       }
     } else {
-      // Producto simple, agregar directamente
+      // Producto simple, agregar directamente con animación
+      const button = e.currentTarget;
+      button.classList.add('adding');
+      
       addToCart({
-        id: product.id,
+        id: `${product.id}-${Date.now()}`,
         productId: product.id,
         name: product.name,
         price: parseFloat(product.price),
         image: product.images?.[0]?.src || '',
         quantity: 1
       });
+      
+      setTimeout(() => {
+        button.classList.remove('adding');
+      }, 1000);
     }
   };
 
@@ -71,30 +69,56 @@ const ProductCard = ({ product, onCustomize }) => {
   const getPriceDisplay = () => {
     if (product.type === 'variable' && product.price_range) {
       return (
-        <span className="product-price-range">
-          {formatPrice(product.price_range.min_price)} - {formatPrice(product.price_range.max_price)}
-        </span>
+        <div className="price-range">
+          <span className="price-from">Desde</span>
+          <span className="product-price-sale">{formatPrice(product.price_range.min_price)}</span>
+        </div>
       );
     }
     
     return (
-      <>
+      <div className="price-single">
         {product.on_sale && product.regular_price && (
           <span className="product-price-regular">{formatPrice(product.regular_price)}</span>
         )}
         <span className="product-price-sale">{formatPrice(product.price)}</span>
-      </>
+      </div>
     );
+  };
+
+  // Obtener badges del producto
+  const getBadges = () => {
+    const badges = [];
+    
+    if (product.on_sale) {
+      const discount = product.regular_price 
+        ? Math.round(((product.regular_price - product.price) / product.regular_price) * 100)
+        : 0;
+      badges.push(
+        <div key="sale" className="product-badge sale">
+          <Tag size={14} />
+          {discount > 0 ? `-${discount}%` : 'OFERTA'}
+        </div>
+      );
+    }
+    
+    if (product.featured) {
+      badges.push(
+        <div key="featured" className="product-badge featured">
+          <Star size={14} />
+          DESTACADO
+        </div>
+      );
+    }
+    
+    return badges;
   };
 
   return (
     <div className="product-card" onClick={handleCardClick}>
-      {product.on_sale && (
-        <div className="product-badge">
-          <Tag size={16} />
-          PROMO
-        </div>
-      )}
+      <div className="product-badges">
+        {getBadges()}
+      </div>
       
       <div className="product-image-container">
         {product.images?.[0]?.src ? (
@@ -109,6 +133,11 @@ const ProductCard = ({ product, onCustomize }) => {
             <ShoppingCart size={48} />
           </div>
         )}
+        {needsCustomization() && (
+          <div className="customizable-badge">
+            Personalizable
+          </div>
+        )}
       </div>
       
       <div className="product-info">
@@ -118,17 +147,6 @@ const ProductCard = ({ product, onCustomize }) => {
           <p className="product-description" 
              dangerouslySetInnerHTML={{ __html: product.short_description }} 
           />
-        )}
-        
-        {/* Mostrar atributos disponibles para productos variables */}
-        {product.attributes?.length > 0 && (
-          <div className="product-attributes">
-            {product.attributes.map(attr => (
-              <span key={attr.id} className="attribute-badge">
-                {attr.options.length} {attr.name}
-              </span>
-            ))}
-          </div>
         )}
         
         <div className="product-footer">
@@ -141,7 +159,13 @@ const ProductCard = ({ product, onCustomize }) => {
             onClick={handleButtonClick}
             aria-label={needsCustomization() ? 'Personalizar producto' : 'Agregar al carrito'}
           >
-            {needsCustomization() ? 'Personalizar' : 'Agregar al carrito'}
+            <span className="btn-text">
+              {needsCustomization() ? 'Personalizar' : 'Agregar'}
+            </span>
+            <span className="btn-icon">
+              {needsCustomization() ? '+' : <ShoppingCart size={18} />}
+            </span>
+            <span className="btn-success">✓</span>
           </button>
         </div>
       </div>
