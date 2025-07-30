@@ -1,67 +1,38 @@
 // src/components/Header/Header.jsx
-import React, { useState, useContext } from 'react';
+import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Menu, X } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
 import './Header.css';
 
 const Header = ({ onCartClick }) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { getItemCount, getCartTotal } = useContext(CartContext);
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP'
-    }).format(price);
+  const { cart } = useContext(CartContext);
+  
+  const getTotalItems = () => {
+    return cart.reduce((total, item) => total + item.quantity, 0);
   };
 
   return (
     <header className="header">
-      <div className="container">
-        <div className="header-content">
-          <button 
-            className="mobile-menu-toggle"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-
-          <Link to="/" className="logo">
-            <span className="logo-text">ESCANDALOSOS</span>
-            <span className="logo-tagline">Pizza Premium</span>
-          </Link>
-
-          <nav className={`nav ${mobileMenuOpen ? 'nav-open' : ''}`}>
-            <Link to="/" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-              Inicio
-            </Link>
-            <Link to="/menu" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-              Menú
-            </Link>
-            <a href="#promos" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-              Promociones
-            </a>
-            <a href="#nosotros" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-              Nosotros
-            </a>
-          </nav>
-
-          <button 
-            className="cart-btn"
-            onClick={onCartClick}
-            aria-label="Abrir carrito"
-          >
-            <ShoppingCart size={20} />
-            {getItemCount() > 0 && (
-              <>
-                <span className="cart-count">{getItemCount()}</span>
-                <span className="cart-total">{formatPrice(getCartTotal())}</span>
-              </>
-            )}
-          </button>
-        </div>
+      <div className="header-container">
+        <Link to="/" className="logo">
+          ESCANDALOSOS
+          <span className="logo-subtitle">PIZZA PREMIUM</span>
+        </Link>
+        
+        <nav className="nav">
+          <Link to="/" className="nav-link">INICIO</Link>
+          <Link to="/menu" className="nav-link">MENÚ</Link>
+          <Link to="/promociones" className="nav-link">PROMOCIONES</Link>
+          <Link to="/nosotros" className="nav-link">NOSOTROS</Link>
+        </nav>
+        
+        <button className="cart-button" onClick={onCartClick} aria-label="Ver carrito">
+          <ShoppingCart size={24} />
+          {getTotalItems() > 0 && (
+            <span className="cart-badge">{getTotalItems()}</span>
+          )}
+        </button>
       </div>
     </header>
   );

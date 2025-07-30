@@ -1,11 +1,13 @@
 // src/components/Cart/CartSidebar.jsx
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { X, Plus, Minus, ShoppingBag, Trash2 } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
+import CheckoutModal from '../Checkout/CheckoutModal';
 import './CartSidebar.css';
 
 const CartSidebar = ({ isOpen, onClose }) => {
   const { cart, updateQuantity, removeFromCart, clearCart, getCartTotal } = useContext(CartContext);
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('es-CL', {
@@ -15,8 +17,12 @@ const CartSidebar = ({ isOpen, onClose }) => {
   };
 
   const handleCheckout = () => {
-    // Aquí implementarás la lógica de checkout con WooCommerce
-    alert('Implementar checkout con WooCommerce');
+    setShowCheckout(true);
+  };
+
+  const handleCloseCheckout = () => {
+    setShowCheckout(false);
+    onClose(); // También cerrar el carrito
   };
 
   return (
@@ -123,6 +129,12 @@ const CartSidebar = ({ isOpen, onClose }) => {
           )}
         </div>
       </aside>
+
+      {/* Modal de Checkout */}
+      <CheckoutModal 
+        isOpen={showCheckout} 
+        onClose={handleCloseCheckout}
+      />
     </>
   );
 };

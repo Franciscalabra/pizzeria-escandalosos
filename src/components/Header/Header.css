@@ -1,73 +1,54 @@
 /* src/components/Header/Header.css */
 .header {
-  position: fixed;
+  background-color: #000000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background-color: var(--bg-color);
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition);
+  z-index: 100;
 }
 
-.header-content {
+.header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 1rem 0;
-  min-height: 80px;
+  align-items: center;
 }
 
-/* Mobile menu toggle */
-.mobile-menu-toggle {
-  display: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  color: var(--text-color);
-}
-
-/* Logo */
 .logo {
+  text-decoration: none;
   display: flex;
   flex-direction: column;
-  text-decoration: none;
-  color: var(--text-color);
+  align-items: flex-start;
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
-.logo-text {
-  font-size: 1.75rem;
-  font-weight: 900;
-  letter-spacing: -1px;
-  color: var(--primary-color);
-  line-height: 1;
-}
-
-.logo-tagline {
-  font-size: 0.625rem;
-  text-transform: uppercase;
+.logo-subtitle {
+  font-size: 0.75rem;
+  font-weight: 400;
   letter-spacing: 2px;
-  color: var(--text-light);
-  margin-top: 0.125rem;
+  color: #ffffff;
+  opacity: 0.8;
 }
 
-/* Navigation */
 .nav {
   display: flex;
+  gap: 2rem;
   align-items: center;
-  gap: 2.5rem;
 }
 
 .nav-link {
   text-decoration: none;
-  color: var(--text-color);
+  color: #ffffff;
   font-weight: 500;
-  font-size: 0.9375rem;
-  position: relative;
-  transition: var(--transition);
-  text-transform: uppercase;
+  font-size: 0.875rem;
   letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
 .nav-link::after {
@@ -77,104 +58,68 @@
   left: 0;
   width: 0;
   height: 2px;
-  background-color: var(--primary-color);
+  background-color: #ec4899;
   transition: width 0.3s ease;
 }
 
 .nav-link:hover {
-  color: var(--primary-color);
+  color: #ec4899;
 }
 
-.nav-link:hover::after,
-.nav-link.active::after {
+.nav-link:hover::after {
   width: 100%;
 }
 
-/* Cart button */
-.cart-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background-color: var(--primary-color);
-  color: white;
+.cart-button {
+  background-color: #ec4899;
   border: none;
-  padding: 0.75rem 1.5rem;
+  color: white;
+  padding: 0.75rem;
   border-radius: 8px;
   cursor: pointer;
-  transition: var(--transition);
-  font-weight: 600;
   position: relative;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.cart-btn:hover {
-  background-color: var(--primary-hover);
+.cart-button:hover {
+  background-color: #db2777;
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
 }
 
-.cart-count {
+.cart-badge {
   position: absolute;
   top: -8px;
   right: -8px;
-  background-color: var(--secondary-color);
-  color: var(--text-color);
-  min-width: 24px;
-  height: 24px;
-  border-radius: 12px;
+  background-color: #ffffff;
+  color: #000000;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
   font-weight: 700;
-  padding: 0 6px;
 }
 
-.cart-total {
-  font-size: 0.875rem;
-}
-
-/* Mobile styles */
+/* Responsive */
 @media (max-width: 768px) {
-  .mobile-menu-toggle {
-    display: block;
+  .header-container {
+    padding: 1rem;
   }
-
+  
   .nav {
-    position: fixed;
-    top: 80px;
-    left: 0;
-    right: 0;
-    background-color: var(--bg-color);
-    flex-direction: column;
-    padding: 2rem;
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-150%);
-    opacity: 0;
-    transition: all 0.3s ease;
-    gap: 1.5rem;
-  }
-
-  .nav-open {
-    transform: translateY(0);
-    opacity: 1;
-  }
-
-  .nav-link {
-    font-size: 1.125rem;
-    width: 100%;
-    text-align: center;
-    padding: 0.5rem 0;
-  }
-
-  .cart-total {
     display: none;
   }
-
-  .cart-btn {
-    padding: 0.75rem 1rem;
+  
+  .logo {
+    font-size: 1.25rem;
   }
-
-  .logo-text {
-    font-size: 1.5rem;
+  
+  .logo-subtitle {
+    font-size: 0.625rem;
   }
 }

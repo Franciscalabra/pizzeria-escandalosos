@@ -1,111 +1,211 @@
 // src/pages/HomePage/HomePage.jsx
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Pizza, Clock, Truck, Star } from 'lucide-react';
-import FeaturedProducts from '../../components/FeaturedProducts/FeaturedProducts';
+import React, { useState, useEffect } from 'react';
+import { Search, Tag } from 'lucide-react';
+import { useWooCommerce } from '../../hooks/useWooCommerce';
 import './HomePage.css';
 
 const HomePage = () => {
-  const features = [
-    {
-      icon: <Pizza size={48} />,
-      title: 'Ingredientes Premium',
-      description: 'Solo usamos los mejores ingredientes importados y locales'
-    },
-    {
-      icon: <Clock size={48} />,
-      title: 'Preparación Rápida',
-      description: 'Tu pizza lista en 20 minutos o menos'
-    },
-    {
-      icon: <Truck size={48} />,
-      title: 'Delivery Express',
-      description: 'Entrega gratis en pedidos sobre $15.000'
-    },
-    {
-      icon: <Star size={48} />,
-      title: 'Satisfacción Garantizada',
-      description: '100% de satisfacción o te devolvemos tu dinero'
+  const { products, categories, loading } = useWooCommerce();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [showCustomizationModal, setShowCustomizationModal] = useState(false);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  
+  // Lazy loading de componentes para evitar importación circular
+  const [ProductCard, setProductCard] = useState(null);
+  const [ProductModal, setProductModal] = useState(null);
+  const [CustomizationModal, setCustomizationModal] = useState(null);
+
+  useEffect(() => {
+    // Cargar componentes de forma asíncrona
+    import('../../components/ProductCard/ProductCard').then(module => {
+      setProductCard(() => module.default);
+    });
+    import('../../components/ProductModal/ProductModal').then(module => {
+      setProductModal(() => module.default);
+    });
+    import('../../components/CustomizationModal/CustomizationModal').then(module => {
+      setCustomizationModal(() => module.default);
+    });
+  }, []);
+
+  useEffect(() => {
+    filterProducts();
+  }, [products, searchTerm, selectedCategory]);
+
+  const filterProducts = () => {
+    let filtered = [...products];
+
+    // Filtrar por búsqueda
+    if (searchTerm) {
+      filtered = filtered.filter(product =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-  ];
+
+    // Filtrar por categoría
+    if (selectedCategory !== 'all') {
+      if (selectedCategory === 'promos') {
+        // Filtrar productos en promoción
+        filtered = filtered.filter(product => 
+          product.on_sale || product.categories.some(cat => cat.slug === 'promociones')
+        );
+      } else if (selectedCategory === 'combos') {
+        // Filtrar combos
+        filtered = filtered.filter(product => 
+          product.categories.some(cat => cat.slug === 'combos')
+        );
+      } else {
+        filtered = filtered.filter(product =>
+          product.categories.some(cat => cat.id === parseInt(selectedCategory))
+        );
+      }
+    }
+
+    setFilteredProducts(filtered);
+  };
+
+  const handleProductClick = (product) => {
+    setSelectedProduct(product);
+    
+    // Si el producto tiene variaciones o es un combo, abrir modal de personalización
+    if (product.variations?.length > 0 || product.type === 'grouped' || product.categories.some(cat => cat.slug === 'combos')) {
+      setShowCustomizationModal(true);
+    } else {
+      setShowProductModal(true);
+    }
+  };
+
+  const handleCloseModals = () => {
+    setShowProductModal(false);
+    setShowCustomizationModal(false);
+    setSelectedProduct(null);
+  };
 
   return (
-    <div className="home-page">
-      {/* Hero Section */}
-      <section className="hero-section">
-        <div className="hero-content">
-          <h1 className="hero-title">
-            Pizza Artesanal
-            <span className="hero-highlight">Hecha con Amor</span>
-          </h1>
-          <p className="hero-subtitle">
-            Descubre el auténtico sabor italiano en cada mordida. 
-            Masa madre, ingredientes frescos y la pasión de siempre.
-          </p>
-          <div className="hero-actions">
-            <Link to="/menu" className="btn btn-primary btn-icon">
-              Ver Menú <ArrowRight size={20} />
-            </Link>
-            <a href="#promos" className="btn btn-secondary">
-              Ofertas del Día
-            </a>
-          </div>
-        </div>
-        <div className="hero-image">
-          <div className="hero-image-wrapper">
-            <img 
-              src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800" 
-              alt="Pizza Artesanal"
+    <div className="homepage">
+      {/* Barra de Promociones */}
+      <div className="promo-bar">
+        <Tag size={20} />
+        <span>¡PROMOS ESPECIALES TODA LA SEMANA!</span>
+      </div>
+
+      {/* Sección de Búsqueda y Filtros */}
+      <section className="search-section">
+        <div className="container">
+          <h1 className="homepage-title">¿Qué se te antoja hoy?</h1>
+          
+          {/* Barra de búsqueda */}
+          <div className="search-container">
+            <Search className="search-icon" size={20} />
+            <input
+              type="text"
+              placeholder="Buscar pizzas, combos, bebidas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
             />
           </div>
-        </div>
-      </section>
 
-      {/* Features Section */}
-      <section className="features-section section">
-        <div className="container">
-          <h2 className="section-title">¿Por qué Escandalosos?</h2>
-          <div className="features-grid">
-            {features.map((feature, index) => (
-              <div key={index} className="feature-card">
-                <div className="feature-icon">
-                  {feature.icon}
-                </div>
-                <h3 className="feature-title">{feature.title}</h3>
-                <p className="feature-description">{feature.description}</p>
-              </div>
+          {/* Categorías */}
+          <div className="categories-container">
+            <button
+              className={`category-btn ${selectedCategory === 'all' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('all')}
+            >
+              Todos
+            </button>
+            
+            <button
+              className={`category-btn promo-category ${selectedCategory === 'promos' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('promos')}
+            >
+              <Tag size={16} />
+              PROMOS
+            </button>
+            
+            <button
+              className={`category-btn ${selectedCategory === 'combos' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('combos')}
+            >
+              Combos
+            </button>
+
+            {categories.map(category => (
+              <button
+                key={category.id}
+                className={`category-btn ${selectedCategory === category.id.toString() ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(category.id.toString())}
+              >
+                {category.name}
+              </button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Featured Products */}
-      <section className="featured-section section">
+      {/* Grid de Productos */}
+      <section className="products-section">
         <div className="container">
-          <h2 className="section-title">Nuestras Favoritas</h2>
-          <FeaturedProducts />
-          <div className="text-center mt-4">
-            <Link to="/menu" className="btn btn-primary">
-              Ver Todo el Menú
-            </Link>
-          </div>
+          {loading ? (
+            <div className="loading-container">
+              <div className="loading-spinner"></div>
+              <p>Cargando deliciosas opciones...</p>
+            </div>
+          ) : (
+            <>
+              <div className="results-info">
+                <p>{filteredProducts.length} productos encontrados</p>
+              </div>
+              
+              <div className="products-grid">
+                {ProductCard && filteredProducts.map(product => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onClick={() => handleProductClick(product)}
+                  />
+                ))}
+              </div>
+
+              {filteredProducts.length === 0 && (
+                <div className="no-results">
+                  <p>No se encontraron productos</p>
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSelectedCategory('all');
+                    }}
+                  >
+                    Ver todos los productos
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="cta-section">
-        <div className="container">
-          <div className="cta-content">
-            <h2 className="cta-title">¿Antojo de Pizza?</h2>
-            <p className="cta-subtitle">
-              Ordena ahora y recibe 10% de descuento en tu primera compra
-            </p>
-            <Link to="/menu" className="btn btn-primary btn-icon">
-              Ordenar Ahora <ArrowRight size={20} />
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* Modals */}
+      {showProductModal && selectedProduct && ProductModal && (
+        <ProductModal
+          product={selectedProduct}
+          isOpen={showProductModal}
+          onClose={handleCloseModals}
+        />
+      )}
+
+      {showCustomizationModal && selectedProduct && CustomizationModal && (
+        <CustomizationModal
+          product={selectedProduct}
+          isOpen={showCustomizationModal}
+          onClose={handleCloseModals}
+        />
+      )}
     </div>
   );
 };
