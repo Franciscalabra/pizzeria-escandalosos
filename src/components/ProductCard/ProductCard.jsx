@@ -1,6 +1,6 @@
 // src/components/ProductCard/ProductCard.jsx
 import React, { useContext } from 'react';
-import { ShoppingCart, Tag, Star } from 'lucide-react';
+import { ShoppingCart, Tag, Clock, Flame, Star } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
 import './ProductCard.css';
 
@@ -14,6 +14,12 @@ const ProductCard = ({ product, onCustomize }) => {
     
     // Producto agrupado
     if (product.type === 'grouped') return true;
+    
+    // Categorías que requieren personalización
+    const customizableCategories = ['pizzas', 'combos', 'personalizables'];
+    if (product.categories?.some(cat => 
+      customizableCategories.includes(cat.slug)
+    )) return true;
     
     // Productos con atributos
     if (product.attributes?.length > 0) return true;
@@ -111,7 +117,26 @@ const ProductCard = ({ product, onCustomize }) => {
       );
     }
     
+    if (product.categories?.some(cat => cat.slug === 'nuevo')) {
+      badges.push(
+        <div key="new" className="product-badge new">
+          <Flame size={14} />
+          NUEVO
+        </div>
+      );
+    }
+    
     return badges;
+  };
+
+  // Obtener tiempo de preparación estimado
+  const getPrepTime = () => {
+    if (product.categories?.some(cat => cat.slug === 'pizzas')) {
+      return '25-35 min';
+    } else if (product.categories?.some(cat => cat.slug === 'bebidas')) {
+      return '5 min';
+    }
+    return '15-25 min';
   };
 
   return (
@@ -148,6 +173,19 @@ const ProductCard = ({ product, onCustomize }) => {
              dangerouslySetInnerHTML={{ __html: product.short_description }} 
           />
         )}
+        
+        {/* Tiempo de preparación */}
+        <div className="product-meta">
+          <span className="prep-time">
+            <Clock size={14} />
+            {getPrepTime()}
+          </span>
+          {product.attributes?.length > 0 && (
+            <span className="variations-count">
+              {product.attributes[0].options.length} opciones
+            </span>
+          )}
+        </div>
         
         <div className="product-footer">
           <div className="product-price">

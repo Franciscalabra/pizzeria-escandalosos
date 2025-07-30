@@ -1,4 +1,3 @@
-// src/components/Checkout/CheckoutPage.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -296,21 +295,14 @@ const CheckoutPage = () => {
           <h1 className="checkout-success-title">¡Gracias por tu pedido!</h1>
           <p className="checkout-success-order">Pedido #{orderId}</p>
           <p className="checkout-success-message">
-            Tu pedido ha sido confirmado exitosamente
+            {orderType === 'delivery' 
+              ? 'Tu pedido será entregado en 30-45 minutos'
+              : 'Tu pedido estará listo para retirar en 20-30 minutos'
+            }
           </p>
           <div className="checkout-success-details">
-            <div className="checkout-whatsapp-info">
-              <MessageSquare size={24} />
-              <div>
-                <p><strong>Te contactaremos por WhatsApp para:</strong></p>
-                <ul>
-                  <li>Confirmar tu pedido</li>
-                  <li>Informarte el tiempo de preparación</li>
-                  <li>Coordinar la entrega o retiro</li>
-                </ul>
-              </div>
-            </div>
-            <p className="checkout-email-note">También recibirás un email con los detalles del pedido.</p>
+            <p>Te hemos enviado un email con los detalles de tu pedido.</p>
+            <p>También recibirás un WhatsApp con la confirmación.</p>
           </div>
           <button 
             className="btn btn-primary"
@@ -479,8 +471,9 @@ const CheckoutPage = () => {
                           onBlur={handleBlur}
                           onFocus={() => setShowAddressSuggestions(true)}
                           className={`checkout-form-input ${errors.address && touched.address ? 'error' : ''}`}
-                          placeholder="Av. Principal 123, Depto 456"
+                          placeholder="Av. Principal 123, Depto 45"
                         />
+                        
                         {showAddressSuggestions && savedAddresses.length > 0 && (
                           <div className="checkout-address-suggestions">
                             <div className="suggestions-header">
@@ -495,7 +488,7 @@ const CheckoutPage = () => {
                                 className="suggestion-item"
                                 onClick={() => selectSavedAddress(addr)}
                               >
-                                <Home size={16} />
+                                <MapPin size={16} />
                                 <div>
                                   <p>{addr.address}</p>
                                   <span>{addr.neighborhood}</span>
@@ -512,7 +505,7 @@ const CheckoutPage = () => {
 
                     <div className="checkout-form-group">
                       <label className="checkout-form-label">
-                        <MapPin size={18} />
+                        <Home size={18} />
                         Comuna
                       </label>
                       <input
@@ -547,19 +540,16 @@ const CheckoutPage = () => {
                   </>
                 ) : (
                   <div className="checkout-pickup-info">
-                    <MessageSquare size={48} className="checkout-pickup-icon" />
-                    <h3>Coordinación por WhatsApp</h3>
+                    <Clock size={48} className="checkout-pickup-icon" />
+                    <h3>Tu pedido estará listo en 20-30 minutos</h3>
                     <div className="checkout-pickup-details">
-                      <p>Te contactaremos por WhatsApp para:</p>
-                      <ul>
-                        <li>Confirmar tu pedido</li>
-                        <li>Informarte cuando esté listo</li>
-                        <li>Coordinar el horario de retiro</li>
-                      </ul>
+                      <p><strong>Dirección:</strong> Av. Principal 456, Santiago Centro</p>
+                      <p><strong>Horario:</strong> Lun-Dom 12:00 - 23:00</p>
+                      <p><strong>Teléfono:</strong> +56 2 1234 5678</p>
                     </div>
                     <div className="checkout-pickup-note">
                       <AlertCircle size={16} />
-                      <p>Asegúrate de tener WhatsApp activo en el número proporcionado</p>
+                      <p>Te enviaremos un WhatsApp cuando tu pedido esté listo</p>
                     </div>
                   </div>
                 )}
@@ -601,12 +591,15 @@ const CheckoutPage = () => {
                         onChange={handleInputChange}
                         onBlur={handleBlur}
                         className={`checkout-form-input ${errors.cashAmount ? 'error' : ''}`}
-                        placeholder={`Monto mayor a ${formatPrice(total)}`}
+                        placeholder={formatPrice(Math.ceil(total / 1000) * 1000)}
+                        min={total}
                       />
                       {errors.cashAmount && (
                         <span className="checkout-form-error">{errors.cashAmount}</span>
                       )}
-                      <span className="checkout-form-hint">Para preparar tu vuelto</span>
+                      <span className="checkout-form-hint">
+                        Para preparar tu vuelto
+                      </span>
                     </div>
                   )}
 
@@ -637,7 +630,7 @@ const CheckoutPage = () => {
                     value={formData.notes}
                     onChange={handleInputChange}
                     className="checkout-form-input checkout-textarea"
-                    placeholder="Alguna instrucción especial para tu pedido..."
+                    placeholder="Ej: Sin cebolla, extra picante, etc."
                     rows={3}
                   />
                 </div>
@@ -645,77 +638,75 @@ const CheckoutPage = () => {
             )}
           </div>
 
-          {/* Sidebar */}
+          {/* Order Summary Sidebar */}
           <div className="checkout-sidebar">
-            <div className="checkout-sidebar-sticky">
-              <div className="checkout-summary">
-                <button 
-                  className="checkout-summary-header"
-                  onClick={() => setShowOrderSummary(!showOrderSummary)}
-                >
-                  <h3>Resumen del pedido ({getItemCount()} items)</h3>
-                  {showOrderSummary ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </button>
-
-                {showOrderSummary && (
-                  <div className="checkout-summary-content">
-                    <div className="checkout-summary-items">
-                      {cart.map(item => (
-                        <div key={item.id} className="checkout-summary-item">
-                          <div className="checkout-summary-item-info">
-                            <span className="checkout-summary-item-name">{item.name}</span>
-                            <span className="checkout-summary-item-quantity">x{item.quantity}</span>
-                          </div>
-                          <span className="checkout-summary-item-price">
-                            {formatPrice(item.price * item.quantity)}
-                          </span>
-                        </div>
-                      ))}
+            <div className="checkout-order-summary">
+              <button 
+                className="checkout-summary-toggle"
+                onClick={() => setShowOrderSummary(!showOrderSummary)}
+              >
+                <h3>Resumen del Pedido</h3>
+                {showOrderSummary ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
+              
+              {showOrderSummary && (
+                <div className="checkout-summary-content">
+                  <div className="checkout-summary-items">
+                    {cart.map(item => (
+                      <div key={item.id} className="checkout-summary-item">
+                        <span>
+                          {item.quantity}x {item.name}
+                        </span>
+                        <span>{formatPrice(item.price * item.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="checkout-summary-totals">
+                    <div className="checkout-summary-row">
+                      <span>Subtotal</span>
+                      <span>{formatPrice(subtotal)}</span>
                     </div>
-
-                    <div className="checkout-summary-totals">
+                    {orderType === 'delivery' && (
                       <div className="checkout-summary-row">
-                        <span>Subtotal</span>
-                        <span>{formatPrice(subtotal)}</span>
+                        <span>Delivery</span>
+                        <span>{formatPrice(deliveryFee)}</span>
                       </div>
-                      {orderType === 'delivery' && (
-                        <div className="checkout-summary-row">
-                          <span>Envío</span>
-                          <span>{formatPrice(deliveryFee)}</span>
-                        </div>
-                      )}
-                      <div className="checkout-summary-row checkout-summary-total">
-                        <span>Total</span>
-                        <span>{formatPrice(total)}</span>
-                      </div>
+                    )}
+                    <div className="checkout-summary-row checkout-summary-total">
+                      <span>Total</span>
+                      <span>{formatPrice(total)}</span>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+            </div>
 
-              <div className="checkout-actions">
-                {currentStep < 3 ? (
-                  <button
-                    className="btn btn-primary checkout-continue-btn"
-                    onClick={handleNextStep}
-                  >
-                    Continuar
-                  </button>
-                ) : (
-                  <button
-                    className="btn btn-primary checkout-confirm-btn"
-                    onClick={handleSubmitOrder}
-                    disabled={loading}
-                  >
-                    {loading ? 'Procesando...' : 'Confirmar Pedido'}
-                  </button>
-                )}
-              </div>
-
-              <div className="checkout-whatsapp-reminder">
-                <MessageSquare size={20} />
-                <p>Te informaremos el tiempo de preparación por WhatsApp</p>
-              </div>
+            {/* Action Buttons */}
+            <div className="checkout-actions">
+              {currentStep < 3 ? (
+                <button
+                  onClick={handleNextStep}
+                  className="btn btn-primary checkout-continue-btn"
+                >
+                  Continuar
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmitOrder}
+                  disabled={loading}
+                  className="btn btn-primary checkout-confirm-btn"
+                >
+                  {loading ? 'Procesando...' : 'Confirmar Pedido'}
+                </button>
+              )}
+              
+              <button
+                onClick={() => navigate('/cart')}
+                className="btn btn-secondary"
+              >
+                Volver al carrito
+              </button>
             </div>
           </div>
         </div>
