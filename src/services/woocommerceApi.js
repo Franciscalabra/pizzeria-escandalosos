@@ -59,6 +59,21 @@ class WooCommerceAPI {
     return this.request(`products/${id}`);
   }
 
+  // Obtener variaciones de un producto
+  async getProductVariations(productId) {
+    return this.request(`products/${productId}/variations?per_page=100`);
+  }
+
+  // Obtener atributos de productos
+  async getProductAttributes() {
+    return this.request('products/attributes');
+  }
+
+  // Obtener términos de un atributo
+  async getAttributeTerms(attributeId) {
+    return this.request(`products/attributes/${attributeId}/terms`);
+  }
+
   // Obtener categorías de productos
   async getCategories() {
     return this.request('products/categories?per_page=100');
@@ -93,39 +108,61 @@ class WooCommerceAPI {
         postcode: '',
         country: 'CL'
       },
-      line_items: orderData.items.map(item => ({
-        product_id: parseInt(item.productId), // Asegurarse de que sea un número
-        quantity: parseInt(item.quantity)
-      })),
-      shipping_lines: orderData.shipping ? [{
-        method_id: 'flat_rate',
-        method_title: 'Delivery',
-        total: orderData.shipping.toString()
-      }] : [],
-      customer_note: orderData.notes || ''
-    };
+      line_items: orderData.items.map(item => {
+        const lineItem = {
+          product_id: parseInt(item.productId),
+          quantity: parseInt(item.quantity)
+        };
 
-    console.log('Order payload:', JSON.stringify(order, null, 2));
+        // Si tiene variación, agregar variation_id
+        if (item.variationId) {
+          lineItem.variation_id = parseInt(item.variationId);
+        }
+
+        // Si tiene meta data (personalizaciones)
+        if (item.customizations) {
+          lineItem.meta_data = [];
+          
+          if (item.customizations.extraIngredients?.length > 0) {
+            lineItem.meta_data.push({
+              key: 'ingredientes_extra',
+              value: item.customizations.extraIngredients.map(i => i.name).join(', ')
+            });
+          }
+
+          if (item.customizations.removedIngredients?.length > 0) {
+            lineItem.meta_data.push({
+              key: 'ingredientes_removidos',
+              value: item.customizations.removedIngredients.join(', ')
+            });
+          }
+
+          if (item.customizations.specialInstructions) {
+            lineItem.meta_data.push({
+              key: 'instrucciones_especiales',
+              value: item.customizations.specialInstructions
+            });
+          }
+        }
+
+        return lineItem;
+      }),
+      shipping_lines: orderData.shipping ? [{
+        method_id: orderData.shipping.method_id || 'flat_rate',
+        method_title: orderData.shipping.method_title || 'Envío a domicilio',
+        total: orderData.shipping.cost?.toString() || '0'
+      }] : []
+    };
 
     return this.request('orders', 'POST', order);
   }
 
-  // Obtener pedidos
-  async getOrders(params = {}) {
-    const queryParams = new URLSearchParams({
-      per_page: 20,
-      ...params
-    }).toString();
-    
-    return this.request(`orders?${queryParams}`);
+  // Obtener un pedido
+  async getOrder(orderId) {
+    return this.request(`orders/${orderId}`);
   }
 
-  // Obtener un pedido por ID
-  async getOrder(id) {
-    return this.request(`orders/${id}`);
-  }
-
-  // Actualizar estado del pedido
+  // Actualizar estado de un pedido
   async updateOrderStatus(orderId, status) {
     return this.request(`orders/${orderId}`, 'PUT', { status });
   }
@@ -134,51 +171,13 @@ class WooCommerceAPI {
   
   // Crear cliente
   async createCustomer(customerData) {
-    const customer = {
-      email: customerData.email,
-      first_name: customerData.firstName,
-      last_name: customerData.lastName || '',
-      username: customerData.email,
-      billing: {
-        first_name: customerData.firstName,
-        last_name: customerData.lastName || '',
-        email: customerData.email,
-        phone: customerData.phone || '',
-        address_1: customerData.address || '',
-        city: customerData.city || 'Santiago',
-        country: 'CL'
-      }
-    };
-
-    return this.request('customers', 'POST', customer);
+    return this.request('customers', 'POST', customerData);
   }
 
-  // Buscar cliente por email
-  async getCustomerByEmail(email) {
-    return this.request(`customers?email=${email}`);
-  }
-
-  // === MÉTODOS DE PAGO ===
-  
-  // Obtener métodos de pago disponibles
-  async getPaymentMethods() {
-    return this.request('payment_gateways');
-  }
-
-  // === ZONAS DE ENVÍO ===
-  
-  // Obtener zonas de envío
-  async getShippingZones() {
-    return this.request('shipping/zones');
-  }
-
-  // === CUPONES ===
-  
-  // Validar cupón
-  async getCoupon(code) {
-    return this.request(`coupons?code=${code}`);
+  // Obtener cliente
+  async getCustomer(customerId) {
+    return this.request(`customers/${customerId}`);
   }
 }
 
-// Exportar instancia única
 export default new WooCommerceAPI();

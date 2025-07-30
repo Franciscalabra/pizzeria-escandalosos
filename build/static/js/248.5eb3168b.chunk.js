@@ -1,1 +1,0 @@
-(self.webpackChunkpizzeria_escandalosos=self.webpackChunkpizzeria_escandalosos||[]).push([[248],{248:()=>{}}]);

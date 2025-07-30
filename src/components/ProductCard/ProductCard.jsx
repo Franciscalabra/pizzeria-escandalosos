@@ -4,13 +4,28 @@ import { ShoppingCart, Tag } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
 import './ProductCard.css';
 
-const ProductCard = ({ product, onClick }) => {
+const ProductCard = ({ product, onCustomize }) => {
   const { addToCart } = useContext(CartContext);
   
   // Verificar si el producto necesita personalización
-  const needsCustomization = product.variations?.length > 0 || 
-                           product.type === 'grouped' || 
-                           product.categories.some(cat => cat.slug === 'combos');
+  const needsCustomization = () => {
+    // Producto variable (con variaciones)
+    if (product.type === 'variable') return true;
+    
+    // Producto agrupado
+    if (product.type === 'grouped') return true;
+    
+    // Categorías que requieren personalización
+    const customizableCategories = ['pizzas', 'combos', 'personalizables'];
+    if (product.categories?.some(cat => 
+      customizableCategories.includes(cat.slug)
+    )) return true;
+    
+    // Productos con atributos
+    if (product.attributes?.length > 0) return true;
+    
+    return false;
+  };
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('es-CL', {
@@ -24,25 +39,52 @@ const ProductCard = ({ product, onClick }) => {
   const handleButtonClick = (e) => {
     e.stopPropagation();
     
-    if (needsCustomization) {
-      // Verificar que onClick sea una función antes de llamarla
-      if (onClick && typeof onClick === 'function') {
-        onClick();
+    if (needsCustomization()) {
+      // Si necesita personalización y hay un manejador, usarlo
+      if (onCustomize && typeof onCustomize === 'function') {
+        onCustomize(product);
       } else {
-        // Si no hay onClick, simplemente agregar al carrito con el producto básico
-        addToCart(product, 1);
+        // Si no hay manejador, mostrar alerta
+        alert('Este producto requiere personalización. Por favor, selecciona las opciones desde el menú.');
       }
     } else {
-      // Agregar directamente al carrito
-      addToCart(product, 1);
+      // Producto simple, agregar directamente
+      addToCart({
+        id: product.id,
+        productId: product.id,
+        name: product.name,
+        price: parseFloat(product.price),
+        image: product.images?.[0]?.src || '',
+        quantity: 1
+      });
     }
   };
 
   const handleCardClick = () => {
-    // Solo ejecutar onClick si está definido y es una función
-    if (onClick && typeof onClick === 'function') {
-      onClick();
+    // Al hacer clic en la tarjeta, mostrar detalles o personalización
+    if (onCustomize && typeof onCustomize === 'function') {
+      onCustomize(product);
     }
+  };
+
+  // Para productos variables, mostrar rango de precios
+  const getPriceDisplay = () => {
+    if (product.type === 'variable' && product.price_range) {
+      return (
+        <span className="product-price-range">
+          {formatPrice(product.price_range.min_price)} - {formatPrice(product.price_range.max_price)}
+        </span>
+      );
+    }
+    
+    return (
+      <>
+        {product.on_sale && product.regular_price && (
+          <span className="product-price-regular">{formatPrice(product.regular_price)}</span>
+        )}
+        <span className="product-price-sale">{formatPrice(product.price)}</span>
+      </>
+    );
   };
 
   return (
@@ -60,6 +102,7 @@ const ProductCard = ({ product, onClick }) => {
             src={product.images[0].src} 
             alt={product.name}
             className="product-image"
+            loading="lazy"
           />
         ) : (
           <div className="product-image-placeholder">
@@ -77,19 +120,28 @@ const ProductCard = ({ product, onClick }) => {
           />
         )}
         
+        {/* Mostrar atributos disponibles para productos variables */}
+        {product.attributes?.length > 0 && (
+          <div className="product-attributes">
+            {product.attributes.map(attr => (
+              <span key={attr.id} className="attribute-badge">
+                {attr.options.length} {attr.name}
+              </span>
+            ))}
+          </div>
+        )}
+        
         <div className="product-footer">
           <div className="product-price">
-            {product.on_sale && product.regular_price && (
-              <span className="product-price-regular">{formatPrice(product.regular_price)}</span>
-            )}
-            <span className="product-price-sale">{formatPrice(product.price)}</span>
+            {getPriceDisplay()}
           </div>
           
           <button 
             className="product-btn"
             onClick={handleButtonClick}
+            aria-label={needsCustomization() ? 'Personalizar producto' : 'Agregar al carrito'}
           >
-            {needsCustomization ? 'Personalizar' : 'Agregar al carrito'}
+            {needsCustomization() ? 'Personalizar' : 'Agregar al carrito'}
           </button>
         </div>
       </div>

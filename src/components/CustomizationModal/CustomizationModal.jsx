@@ -1,58 +1,90 @@
 // src/components/CustomizationModal/CustomizationModal.jsx
 import React, { useState, useContext, useEffect } from 'react';
-import { X, Plus, Minus, Info, Check } from 'lucide-react';
+import { X, Plus, Minus, Info, Check, Loader } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
+import woocommerceApi from '../../services/woocommerceApi';
 import './CustomizationModal.css';
 
 const CustomizationModal = ({ product, isOpen, onClose }) => {
   const { addToCart } = useContext(CartContext);
-  const [selectedSize, setSelectedSize] = useState(null);
-  const [selectedIngredients, setSelectedIngredients] = useState([]);
-  const [removedIngredients, setRemovedIngredients] = useState([]);
-  const [extraIngredients, setExtraIngredients] = useState([]);
+  
+  // Estados para datos de WooCommerce
+  const [variations, setVariations] = useState([]);
+  const [attributes, setAttributes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Estados de selección
+  const [selectedAttributes, setSelectedAttributes] = useState({});
+  const [selectedVariation, setSelectedVariation] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [totalPrice, setTotalPrice] = useState(0);
 
-  // Configuración de ejemplo - esto vendría de WooCommerce
-  const sizes = [
-    { id: 'personal', name: 'Personal', price: 0 },
-    { id: 'mediana', name: 'Mediana', price: 2000 },
-    { id: 'familiar', name: 'Familiar', price: 4000 },
-    { id: 'gigante', name: 'Gigante', price: 6000 }
-  ];
-
-  const availableIngredients = [
-    { id: 'queso', name: 'Queso Extra', price: 1500 },
-    { id: 'pepperoni', name: 'Pepperoni', price: 2000 },
-    { id: 'champinones', name: 'Champiñones', price: 1500 },
-    { id: 'jamon', name: 'Jamón', price: 1800 },
-    { id: 'pina', name: 'Piña', price: 1500 },
-    { id: 'aceituna', name: 'Aceitunas', price: 1200 },
-    { id: 'cebolla', name: 'Cebolla', price: 1000 },
-    { id: 'pimenton', name: 'Pimentón', price: 1200 }
-  ];
-
-  const defaultIngredients = ['queso', 'salsa', 'oregano'];
-
+  // Cargar variaciones y atributos cuando se abre el modal
   useEffect(() => {
-    if (product && sizes.length > 0) {
-      setSelectedSize(sizes[0]);
+    if (isOpen && product) {
+      loadProductData();
     }
-  }, [product]);
+  }, [isOpen, product]);
 
+  // Actualizar precio cuando cambia la selección
   useEffect(() => {
-    calculateTotal();
-  }, [selectedSize, extraIngredients, quantity]);
+    updatePrice();
+  }, [selectedVariation, quantity]);
 
-  const calculateTotal = () => {
-    if (!product || !selectedSize) return;
+  const loadProductData = async () => {
+    setLoading(true);
+    setError(null);
     
-    let basePrice = parseFloat(product.price);
-    let sizePrice = selectedSize.price;
-    let extrasPrice = extraIngredients.reduce((sum, extra) => sum + extra.price, 0);
+    try {
+      // Si es un producto variable, cargar variaciones
+      if (product.type === 'variable') {
+        const variationsData = await woocommerceApi.getProductVariations(product.id);
+        setVariations(variationsData);
+        
+        // Extraer atributos del producto
+        if (product.attributes) {
+          setAttributes(product.attributes.filter(attr => attr.variation));
+        }
+      }
+    } catch (err) {
+      console.error('Error loading product data:', err);
+      setError('Error al cargar las opciones del producto');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAttributeChange = (attributeName, value) => {
+    const newAttributes = {
+      ...selectedAttributes,
+      [attributeName]: value
+    };
+    setSelectedAttributes(newAttributes);
     
-    setTotalPrice((basePrice + sizePrice + extrasPrice) * quantity);
+    // Buscar variación que coincida con los atributos seleccionados
+    findMatchingVariation(newAttributes);
+  };
+
+  const findMatchingVariation = (attributes) => {
+    if (!variations.length) return;
+    
+    const matching = variations.find(variation => {
+      return variation.attributes.every(attr => {
+        return attributes[attr.name] === attr.option;
+      });
+    });
+    
+    setSelectedVariation(matching);
+  };
+
+  const updatePrice = () => {
+    if (selectedVariation) {
+      setTotalPrice(parseFloat(selectedVariation.price) * quantity);
+    } else if (product) {
+      setTotalPrice(parseFloat(product.price) * quantity);
+    }
   };
 
   const formatPrice = (price) => {
@@ -64,44 +96,48 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
     }).format(price);
   };
 
-  const handleIngredientToggle = (ingredient) => {
-    if (extraIngredients.find(item => item.id === ingredient.id)) {
-      setExtraIngredients(extraIngredients.filter(item => item.id !== ingredient.id));
-    } else {
-      setExtraIngredients([...extraIngredients, ingredient]);
+  const isValidSelection = () => {
+    if (product.type === 'variable') {
+      // Para productos variables, verificar que se haya seleccionado una variación
+      return selectedVariation !== null;
     }
-  };
-
-  const handleRemoveIngredient = (ingredientId) => {
-    if (removedIngredients.includes(ingredientId)) {
-      setRemovedIngredients(removedIngredients.filter(id => id !== ingredientId));
-    } else {
-      setRemovedIngredients([...removedIngredients, ingredientId]);
-    }
+    return true;
   };
 
   const handleAddToCart = () => {
-    const customizations = {
-      size: selectedSize,
-      extraIngredients,
-      removedIngredients,
-      specialInstructions
+    if (!isValidSelection()) {
+      alert('Por favor, selecciona todas las opciones requeridas');
+      return;
+    }
+
+    const cartItem = {
+      id: selectedVariation ? `${product.id}-${selectedVariation.id}` : product.id,
+      productId: product.id,
+      variationId: selectedVariation?.id,
+      name: product.name,
+      price: selectedVariation ? parseFloat(selectedVariation.price) : parseFloat(product.price),
+      image: selectedVariation?.image?.src || product.images?.[0]?.src || '',
+      quantity,
+      customizations: {
+        attributes: selectedAttributes,
+        specialInstructions,
+        variationName: selectedVariation?.name || ''
+      }
     };
 
-    addToCart({
-      id: `${product.id}-${Date.now()}`,
-      productId: product.id,
-      name: product.name,
-      price: totalPrice / quantity,
-      image: product.images?.[0]?.src || null,
-      quantity,
-      customizations
-    });
-
+    addToCart(cartItem);
     onClose();
+    resetForm();
   };
 
-  if (!isOpen) return null;
+  const resetForm = () => {
+    setSelectedAttributes({});
+    setSelectedVariation(null);
+    setQuantity(1);
+    setSpecialInstructions('');
+  };
+
+  if (!isOpen || !product) return null;
 
   return (
     <div className="customization-modal-overlay" onClick={onClose}>
@@ -114,119 +150,110 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         </div>
 
         <div className="customization-content">
-          {/* Imagen y descripción */}
-          <div className="customization-product-info">
-            {product.images?.[0]?.src && (
-              <img 
-                src={product.images[0].src} 
-                alt={product.name}
-                className="customization-product-image"
-              />
-            )}
-            <div>
-              <h3>{product.name}</h3>
-              {product.short_description && (
-                <p dangerouslySetInnerHTML={{ __html: product.short_description }} />
-              )}
+          {loading ? (
+            <div className="loading-container">
+              <Loader className="spinner" size={40} />
+              <p>Cargando opciones...</p>
             </div>
-          </div>
-
-          {/* Selección de tamaño */}
-          <div className="customization-section">
-            <h4>Elige el tamaño</h4>
-            <div className="size-options">
-              {sizes.map(size => (
-                <label key={size.id} className="size-option">
-                  <input
-                    type="radio"
-                    name="size"
-                    value={size.id}
-                    checked={selectedSize?.id === size.id}
-                    onChange={() => setSelectedSize(size)}
+          ) : error ? (
+            <div className="error-container">
+              <p className="error-message">{error}</p>
+              <button onClick={loadProductData} className="retry-button">
+                Reintentar
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Imagen y descripción del producto */}
+              <div className="customization-product-info">
+                {product.images?.[0]?.src && (
+                  <img 
+                    src={product.images[0].src} 
+                    alt={product.name}
+                    className="customization-product-image"
                   />
-                  <div className="size-option-content">
-                    <span className="size-name">{size.name}</span>
-                    {size.price > 0 && (
-                      <span className="size-price">+{formatPrice(size.price)}</span>
-                    )}
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Ingredientes por defecto */}
-          <div className="customization-section">
-            <h4>Ingredientes incluidos</h4>
-            <p className="section-description">Puedes quitar los que no desees</p>
-            <div className="default-ingredients">
-              {defaultIngredients.map(ingredient => (
-                <div 
-                  key={ingredient}
-                  className={`ingredient-chip ${removedIngredients.includes(ingredient) ? 'removed' : ''}`}
-                  onClick={() => handleRemoveIngredient(ingredient)}
-                >
-                  <span>{ingredient}</span>
-                  {removedIngredients.includes(ingredient) ? <Plus size={16} /> : <X size={16} />}
+                )}
+                <div>
+                  <h3>{product.name}</h3>
+                  {product.short_description && (
+                    <p dangerouslySetInnerHTML={{ __html: product.short_description }} />
+                  )}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          {/* Ingredientes extra */}
-          <div className="customization-section">
-            <h4>Agrega ingredientes extra</h4>
-            <div className="extra-ingredients">
-              {availableIngredients.map(ingredient => (
-                <label key={ingredient.id} className="ingredient-option">
-                  <input
-                    type="checkbox"
-                    checked={extraIngredients.some(item => item.id === ingredient.id)}
-                    onChange={() => handleIngredientToggle(ingredient)}
-                  />
-                  <div className="ingredient-option-content">
-                    <span className="ingredient-name">{ingredient.name}</span>
-                    <span className="ingredient-price">+{formatPrice(ingredient.price)}</span>
+              {/* Atributos del producto (tamaño, color, etc.) */}
+              {attributes.length > 0 && (
+                <div className="customization-section">
+                  {attributes.map(attribute => (
+                    <div key={attribute.id} className="attribute-section">
+                      <h4>{attribute.name}</h4>
+                      <div className="attribute-options">
+                        {attribute.options.map(option => (
+                          <label key={option} className="attribute-option">
+                            <input
+                              type="radio"
+                              name={attribute.name}
+                              value={option}
+                              checked={selectedAttributes[attribute.name] === option}
+                              onChange={() => handleAttributeChange(attribute.name, option)}
+                            />
+                            <span className="option-label">{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Mostrar información de la variación seleccionada */}
+              {selectedVariation && (
+                <div className="variation-info">
+                  <div className="variation-price">
+                    <span>Precio:</span>
+                    <span className="price">{formatPrice(selectedVariation.price)}</span>
                   </div>
-                  <div className="ingredient-checkbox">
-                    {extraIngredients.some(item => item.id === ingredient.id) && <Check size={16} />}
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
+                  {selectedVariation.stock_status === 'outofstock' && (
+                    <p className="out-of-stock">Agotado</p>
+                  )}
+                </div>
+              )}
 
-          {/* Instrucciones especiales */}
-          <div className="customization-section">
-            <h4>Instrucciones especiales (opcional)</h4>
-            <textarea
-              placeholder="Ej: Sin cebolla, poco cocida, extra crujiente..."
-              value={specialInstructions}
-              onChange={(e) => setSpecialInstructions(e.target.value)}
-              className="special-instructions"
-              rows={3}
-            />
-          </div>
+              {/* Instrucciones especiales */}
+              <div className="customization-section">
+                <h4>Instrucciones especiales (opcional)</h4>
+                <textarea
+                  placeholder="Ej: Sin cebolla, poco cocida, extra crujiente..."
+                  value={specialInstructions}
+                  onChange={(e) => setSpecialInstructions(e.target.value)}
+                  className="special-instructions"
+                  rows={3}
+                />
+              </div>
 
-          {/* Cantidad */}
-          <div className="customization-section">
-            <h4>Cantidad</h4>
-            <div className="quantity-selector">
-              <button 
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="quantity-btn"
-              >
-                <Minus size={20} />
-              </button>
-              <span className="quantity-value">{quantity}</span>
-              <button 
-                onClick={() => setQuantity(quantity + 1)}
-                className="quantity-btn"
-              >
-                <Plus size={20} />
-              </button>
-            </div>
-          </div>
+              {/* Selector de cantidad */}
+              <div className="customization-section">
+                <h4>Cantidad</h4>
+                <div className="quantity-selector">
+                  <button 
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="quantity-btn"
+                    aria-label="Disminuir cantidad"
+                  >
+                    <Minus size={20} />
+                  </button>
+                  <span className="quantity-value">{quantity}</span>
+                  <button 
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="quantity-btn"
+                    aria-label="Aumentar cantidad"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="customization-footer">
@@ -237,8 +264,9 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
           <button 
             className="btn btn-primary add-to-cart-btn"
             onClick={handleAddToCart}
+            disabled={loading || !isValidSelection()}
           >
-            Agregar al carrito
+            {loading ? 'Cargando...' : 'Agregar al carrito'}
           </button>
         </div>
       </div>
