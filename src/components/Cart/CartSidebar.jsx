@@ -1,13 +1,13 @@
 // src/components/Cart/CartSidebar.jsx
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Plus, Minus, ShoppingBag, Trash2 } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
-import CheckoutModal from '../Checkout/CheckoutModal';
 import './CartSidebar.css';
 
 const CartSidebar = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   const { cart, updateQuantity, removeFromCart, clearCart, getCartTotal } = useContext(CartContext);
-  const [showCheckout, setShowCheckout] = useState(false);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('es-CL', {
@@ -17,12 +17,8 @@ const CartSidebar = ({ isOpen, onClose }) => {
   };
 
   const handleCheckout = () => {
-    setShowCheckout(true);
-  };
-
-  const handleCloseCheckout = () => {
-    setShowCheckout(false);
-    onClose(); // También cerrar el carrito
+    onClose(); // Cerrar el sidebar
+    navigate('/checkout'); // Navegar a la página de checkout
   };
 
   return (
@@ -129,12 +125,6 @@ const CartSidebar = ({ isOpen, onClose }) => {
           )}
         </div>
       </aside>
-
-      {/* Modal de Checkout */}
-      <CheckoutModal 
-        isOpen={showCheckout} 
-        onClose={handleCloseCheckout}
-      />
     </>
   );
 };

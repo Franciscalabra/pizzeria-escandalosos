@@ -15,13 +15,27 @@ class WooCommerceAPI {
         options.body = JSON.stringify(data);
       }
 
+      console.log('Request URL:', url);
+      console.log('Request options:', options);
+
       const response = await fetch(url, options);
       
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      // Intentar obtener el cuerpo de la respuesta
+      const responseText = await response.text();
+      let responseData;
+      
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        responseData = responseText;
       }
 
-      return await response.json();
+      if (!response.ok) {
+        console.error('Error response:', responseData);
+        throw new Error(`Error ${response.status}: ${responseData.message || responseData.code || response.statusText}`);
+      }
+
+      return responseData;
     } catch (error) {
       console.error('Error en la petición a WooCommerce:', error);
       throw error;
@@ -58,6 +72,7 @@ class WooCommerceAPI {
       payment_method: orderData.paymentMethod || 'cash',
       payment_method_title: orderData.paymentMethodTitle || 'Pago en efectivo',
       set_paid: false,
+      status: 'pending',
       billing: {
         first_name: orderData.customerName,
         last_name: '',
@@ -79,16 +94,18 @@ class WooCommerceAPI {
         country: 'CL'
       },
       line_items: orderData.items.map(item => ({
-        product_id: item.productId,
-        quantity: item.quantity,
-        meta_data: item.customizations || []
+        product_id: parseInt(item.productId), // Asegurarse de que sea un número
+        quantity: parseInt(item.quantity)
       })),
       shipping_lines: orderData.shipping ? [{
         method_id: 'flat_rate',
         method_title: 'Delivery',
         total: orderData.shipping.toString()
-      }] : []
+      }] : [],
+      customer_note: orderData.notes || ''
     };
+
+    console.log('Order payload:', JSON.stringify(order, null, 2));
 
     return this.request('orders', 'POST', order);
   }

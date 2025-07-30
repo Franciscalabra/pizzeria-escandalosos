@@ -25,21 +25,28 @@ const ProductCard = ({ product, onClick }) => {
     e.stopPropagation();
     
     if (needsCustomization) {
-      onClick();
+      // Verificar que onClick sea una función antes de llamarla
+      if (onClick && typeof onClick === 'function') {
+        onClick();
+      } else {
+        // Si no hay onClick, simplemente agregar al carrito con el producto básico
+        addToCart(product, 1);
+      }
     } else {
       // Agregar directamente al carrito
-      addToCart({
-        id: product.id,
-        name: product.name,
-        price: parseFloat(product.price),
-        image: product.images?.[0]?.src || null,
-        quantity: 1
-      });
+      addToCart(product, 1);
+    }
+  };
+
+  const handleCardClick = () => {
+    // Solo ejecutar onClick si está definido y es una función
+    if (onClick && typeof onClick === 'function') {
+      onClick();
     }
   };
 
   return (
-    <div className="product-card" onClick={onClick}>
+    <div className="product-card" onClick={handleCardClick}>
       {product.on_sale && (
         <div className="product-badge">
           <Tag size={16} />
