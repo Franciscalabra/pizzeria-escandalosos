@@ -1,14 +1,33 @@
 // src/components/ProductCard/ProductCard.jsx
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { ShoppingCart, Tag, Clock, Flame, Star } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
+import escandalososApi from '../../services/escandalososApi';
 import './ProductCard.css';
 
 const ProductCard = ({ product, onCustomize }) => {
   const { addToCart } = useContext(CartContext);
+  const [isCombo, setIsCombo] = useState(false);
+  
+  // Verificar si el producto es combo usando la API de Escandalosos
+  useEffect(() => {
+    const checkIfCombo = async () => {
+      try {
+        const isProductCombo = await escandalososApi.isCombo(product.id);
+        setIsCombo(isProductCombo);
+      } catch (error) {
+        console.error('Error verificando si es combo:', error);
+      }
+    };
+    
+    checkIfCombo();
+  }, [product.id]);
   
   // Verificar si el producto necesita personalización
   const needsCustomization = () => {
+    // Si es combo según el plugin Escandalosos
+    if (isCombo) return true;
+    
     // Producto variable (con variaciones)
     if (product.type === 'variable') return true;
     
@@ -119,6 +138,15 @@ const ProductCard = ({ product, onCustomize }) => {
       );
     }
     
+    // Badge para combo
+    if (isCombo) {
+      badges.push(
+        <div key="combo" className="product-badge combo">
+          🍕 COMBO
+        </div>
+      );
+    }
+    
     return badges;
   };
 
@@ -153,7 +181,7 @@ const ProductCard = ({ product, onCustomize }) => {
         )}
         {needsCustomization() && (
           <div className="customizable-badge">
-            Personalizable
+            {isCombo ? 'Combo Personalizable' : 'Personalizable'}
           </div>
         )}
       </div>
@@ -176,6 +204,11 @@ const ProductCard = ({ product, onCustomize }) => {
           {product.attributes?.length > 0 && (
             <span className="variations-count">
               {product.attributes[0].options.length} opciones
+            </span>
+          )}
+          {isCombo && (
+            <span className="combo-indicator">
+               Combo
             </span>
           )}
         </div>

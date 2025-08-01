@@ -5,6 +5,8 @@ import { useWooCommerce } from '../../hooks/useWooCommerce';
 import ProductCard from '../../components/ProductCard/ProductCard';
 import ProductModal from '../../components/ProductModal/ProductModal';
 import CustomizationModal from '../../components/CustomizationModal/CustomizationModal';
+import ComboModal from '../../components/ComboModal/ComboModal';
+import escandalososApi from '../../services/escandalososApi';
 import './HomePage.css';
 
 const HomePage = () => {
@@ -15,6 +17,7 @@ const HomePage = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
+  const [showComboModal, setShowComboModal] = useState(false);
 
   // Actualizar productos filtrados cuando cambian los productos, categoría o búsqueda
   useEffect(() => {
@@ -42,8 +45,23 @@ const HomePage = () => {
     setFilteredProducts(filtered);
   };
 
-  const handleProductClick = (product) => {
+  const handleProductClick = async (product) => {
     setSelectedProduct(product);
+    
+    // Verificar si es un combo usando la API de Escandalosos
+    try {
+      const isCombo = await escandalososApi.isCombo(product.id);
+      
+      if (isCombo) {
+        // Es un combo, abrir el ComboModal
+        setShowComboModal(true);
+        setShowCustomizationModal(false);
+        setShowProductModal(false);
+        return;
+      }
+    } catch (error) {
+      console.error('Error verificando si es combo:', error);
+    }
     
     // Determinar qué modal abrir basado en el tipo de producto
     const needsCustomization = 
@@ -66,6 +84,7 @@ const HomePage = () => {
   const handleCloseModals = () => {
     setShowProductModal(false);
     setShowCustomizationModal(false);
+    setShowComboModal(false);
     setTimeout(() => setSelectedProduct(null), 300);
   };
 
@@ -217,6 +236,15 @@ const HomePage = () => {
         <CustomizationModal
           product={selectedProduct}
           isOpen={showCustomizationModal}
+          onClose={handleCloseModals}
+        />
+      )}
+
+      {/* Modal de combo */}
+      {selectedProduct && showComboModal && (
+        <ComboModal
+          product={selectedProduct}
+          isOpen={showComboModal}
           onClose={handleCloseModals}
         />
       )}
