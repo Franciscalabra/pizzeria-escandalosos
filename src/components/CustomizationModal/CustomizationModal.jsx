@@ -1,6 +1,6 @@
 // src/components/CustomizationModal/CustomizationModal.jsx
 import React, { useState, useContext, useEffect } from 'react';
-import { X, Plus, Minus, Info, Check, Loader, Pizza, Upload } from 'lucide-react';
+import { X, Plus, Minus, Info, Check, Loader, Pizza, Upload, ShoppingCart } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
 import woocommerceApi from '../../services/woocommerceApi';
 import './CustomizationModal.css';
@@ -92,7 +92,7 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
       }
 
       // Cargar Advanced Product Fields si existen
-      loadProductAddons();
+      await loadProductAddons();
       
     } catch (err) {
       console.error('Error loading product data:', err);
@@ -151,19 +151,104 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         }
         
         // Si no encontramos los campos compilados, intentamos obtenerlos via API personalizada
-        if (groupIds.length > 0) {
-          console.log('Intentando obtener campos del grupo via API...');
+        if (groupIds.length > 0 || true) { // Siempre intentar con la API personalizada
+          console.log('Intentando obtener campos del producto via API...');
+          console.log('ID del producto:', product.id);
+          
           try {
-            // Primero intentamos con el endpoint personalizado si existe
-            const response = await fetch(`/wp-json/custom/v1/product-fields/${product.id}`);
+            // Construir la URL completa
+            const apiUrl = `https://escandalosospizzas.cl/wp/wp-json/custom/v1/product-fields/${product.id}`;
+            console.log('URL de la API:', apiUrl);
+            
+            const response = await fetch(apiUrl);
+            console.log('Status de respuesta:', response.status);
+            
             if (response.ok) {
-              const fields = await response.json();
-              console.log('Campos obtenidos via API personalizada:', fields);
-              if (fields && fields.fields) {
-                setProductAddons(fields.fields);
-                initializeAddonValues(fields.fields);
-                return;
+              const data = await response.json();
+              console.log('Respuesta completa de la API:', data);
+              console.log('Tipo de respuesta:', typeof data);
+              console.log('Es array?:', Array.isArray(data));
+              console.log('Claves del objeto:', Object.keys(data));
+              console.log('Valores del objeto:', Object.values(data));
+              
+              // Intentar diferentes estructuras de respuesta
+              let fields = null;
+              
+              // ESTRUCTURA ESPECÍFICA DE WAPF (Advanced Product Fields)
+              if (data && data.field_groups && data.field_groups.fields) {
+                console.log('Campos encontrados en field_groups.fields');
+                fields = data.field_groups.fields;
               }
+              // Si la respuesta es un array directo
+              else if (Array.isArray(data)) {
+                fields = data;
+              }
+              // Si los campos están en data.fields
+              else if (data && data.fields && Array.isArray(data.fields)) {
+                fields = data.fields;
+              }
+              // Si los campos están en data.data
+              else if (data && data.data) {
+                fields = data.data;
+              }
+              // Si la respuesta tiene una propiedad items
+              else if (data && data.items) {
+                fields = data.items;
+              }
+              // Si la respuesta tiene una propiedad addons
+              else if (data && data.addons) {
+                fields = data.addons;
+              }
+              // Si la respuesta tiene una propiedad product_fields
+              else if (data && data.product_fields) {
+                fields = data.product_fields;
+              }
+              // Si la respuesta es un objeto con campos como propiedades
+              else if (data && typeof data === 'object' && !Array.isArray(data)) {
+                // Buscar cualquier propiedad que sea un array
+                const keys = Object.keys(data);
+                for (const key of keys) {
+                  if (Array.isArray(data[key])) {
+                    console.log(`Encontrado array de campos en la propiedad: ${key}`);
+                    fields = data[key];
+                    break;
+                  }
+                }
+                
+                // Si no encontramos arrays, tal vez los campos están directamente en el objeto
+                if (!fields && keys.length > 0) {
+                  // Verificar si el objeto tiene estructura de campo
+                  const firstKey = keys[0];
+                  if (data[firstKey] && (data[firstKey].type || data[firstKey].label || data[firstKey].name)) {
+                    // Convertir el objeto en array
+                    fields = Object.values(data);
+                  }
+                }
+              }
+              
+              if (fields) {
+                console.log('Campos encontrados y procesados:', fields);
+                // Log de cada campo para debug
+                fields.forEach(field => {
+                  console.log('Campo individual:', {
+                    id: field.id,
+                    label: field.label,
+                    title: field.title,
+                    name: field.name,
+                    type: field.type,
+                    required: field.required,
+                    pricing: field.pricing,
+                    options: field.options
+                  });
+                });
+                setProductAddons(fields);
+                initializeAddonValues(fields);
+                return;
+              } else {
+                console.log('No se pudieron extraer campos de la respuesta');
+              }
+            } else {
+              console.log('La API devolvió un error:', response.status, response.statusText);
             }
           } catch (error) {
             console.log('Error obteniendo campos via API:', error);
@@ -184,7 +269,7 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
     }
     
     console.log('=== ESTADO FINAL DE ADDONS ===');
-    console.log('productAddons:', productAddons);
+    console.log('productAddons establecidos:', productAddons);
   };
 
   const initializeAddonValues = (fields) => {
@@ -198,10 +283,16 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         defaultValues[fieldId] = field.min;
       } else if (field.type === 'true_false') {
         defaultValues[fieldId] = false;
+      } else if (field.type === 'radio' || field.type === 'radiobutton') {
+        // Para radio buttons, buscar si hay una opción seleccionada por defecto
+        const choices = field.options?.choices || field.options || [];
+        const defaultChoice = choices.find(choice => choice.selected === true);
+        defaultValues[fieldId] = defaultChoice ? (defaultChoice.label || defaultChoice.value) : '';
       } else {
         defaultValues[fieldId] = '';
       }
     });
+    console.log('Valores iniciales de addons:', defaultValues);
     setAddonValues(defaultValues);
   };
 
@@ -223,7 +314,7 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
       return variation.attributes.every(attr => {
         const normalizedAttrName = attr.name.toLowerCase().replace(/-/g, ' ');
         const selectedValue = attributes[attr.name] || attributes[normalizedAttrName];
-        return selectedValue === attr.option;
+        return selectedValue == attr.option;
       });
     });
     
@@ -259,8 +350,17 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
       
       if (!value || (Array.isArray(value) && value.length === 0)) return;
       
-      // Precio fijo
-      if (addon.price_type === 'flat_fee' && addon.price) {
+      // Para WAPF, el precio puede estar en addon.pricing
+      if (addon.pricing && addon.pricing.enabled && addon.pricing.amount) {
+        if (addon.pricing.type === 'fixed') {
+          addonTotal += parseFloat(addon.pricing.amount);
+        } else if (addon.pricing.type === 'quantity_based') {
+          addonTotal += parseFloat(addon.pricing.amount) * quantity;
+        }
+      }
+      
+      // Precio fijo tradicional
+      else if (addon.price_type === 'flat_fee' && addon.price) {
         addonTotal += parseFloat(addon.price);
       }
       
@@ -275,17 +375,19 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
       }
       
       // Para campos con opciones (radio, select, checkbox)
-      else if (addon.options && Array.isArray(addon.options)) {
-        addon.options.forEach(option => {
+      else if ((addon.options?.choices || addon.options) && Array.isArray(addon.options?.choices || addon.options)) {
+        const options = addon.options?.choices || addon.options;
+        options.forEach(option => {
           const isSelected = Array.isArray(value) 
             ? value.includes(option.label || option.value)
             : value === (option.label || option.value);
             
-          if (isSelected && option.price) {
-            if (option.price_type === 'quantity_based') {
-              addonTotal += parseFloat(option.price) * quantity;
+          if (isSelected && (option.pricing_amount || option.price)) {
+            const optionPrice = option.pricing_amount || option.price;
+            if (option.pricing_type === 'quantity_based' || option.price_type === 'quantity_based') {
+              addonTotal += parseFloat(optionPrice) * quantity;
             } else {
-              addonTotal += parseFloat(option.price);
+              addonTotal += parseFloat(optionPrice);
             }
           }
         });
@@ -469,6 +571,7 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         
       case 'select':
       case 'dropdown':
+        const selectOptions = addon.options?.choices || addon.options || [];
         return (
           <select
             value={value}
@@ -477,10 +580,10 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
             required={addon.required}
           >
             <option value="">Selecciona una opción</option>
-            {addon.options?.map((option, index) => (
+            {selectOptions.map((option, index) => (
               <option key={index} value={option.label || option.value}>
                 {option.label || option.value}
-                {option.price && option.price > 0 && ` (+${formatPrice(option.price)})`}
+                {(option.pricing_amount && option.pricing_amount > 0) && ` (+${formatPrice(option.pricing_amount)})`}
               </option>
             ))}
           </select>
@@ -488,9 +591,11 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         
       case 'radio':
       case 'radiobutton':
+        // Obtener las opciones correctamente según la estructura de WAPF
+        const radioOptions = addon.options?.choices || addon.options || [];
         return (
           <div className="addon-radio-group">
-            {addon.options?.map((option, index) => (
+            {radioOptions.map((option, index) => (
               <label key={index} className="addon-radio-option">
                 <input
                   type="radio"
@@ -502,7 +607,7 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
                 />
                 <span className="radio-label">
                   {option.label || option.value}
-                  {option.price && option.price > 0 && ` (+${formatPrice(option.price)})`}
+                  {(option.pricing_amount && option.pricing_amount > 0) && ` (+${formatPrice(option.pricing_amount)})`}
                 </span>
               </label>
             ))}
@@ -510,10 +615,12 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         );
         
       case 'checkbox':
+      case 'checkboxes':
       case 'multiple_choice':
+        const checkboxOptions = addon.options?.choices || addon.options || [];
         return (
           <div className="addon-checkbox-group">
-            {addon.options?.map((option, index) => (
+            {checkboxOptions.map((option, index) => (
               <label key={index} className="addon-checkbox-option">
                 <input
                   type="checkbox"
@@ -532,7 +639,7 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
                 />
                 <span className="checkbox-label">
                   {option.label || option.value}
-                  {option.price && option.price > 0 && ` (+${formatPrice(option.price)})`}
+                  {(option.pricing_amount && option.pricing_amount > 0) && ` (+${formatPrice(option.pricing_amount)})`}
                 </span>
               </label>
             ))}
@@ -557,13 +664,25 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
               </span>
             </label>
             {addon.max_size && (
-              <p className="file-size-info">Tamaño máximo: {addon.max_size}MB</p>
+              <p className="file-size-info">
+                Tamaño máximo: {addon.max_size}MB
+              </p>
             )}
           </div>
         );
         
+      case 'color':
+        return (
+          <input
+            type="color"
+            value={value || '#000000'}
+            onChange={(e) => handleAddonChange(fieldId, e.target.value)}
+            className="addon-color-input"
+            required={addon.required}
+          />
+        );
+        
       case 'date':
-      case 'date_picker':
         return (
           <input
             type="date"
@@ -576,49 +695,38 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
           />
         );
         
-      case 'color':
-      case 'color_picker':
-        return (
-          <input
-            type="color"
-            value={value || '#000000'}
-            onChange={(e) => handleAddonChange(fieldId, e.target.value)}
-            className="addon-color-input"
-            required={addon.required}
-          />
-        );
-        
       case 'true_false':
         return (
           <label className="addon-checkbox-option">
             <input
               type="checkbox"
-              checked={value === true || value === 'yes'}
+              checked={value === true}
               onChange={(e) => handleAddonChange(fieldId, e.target.checked)}
               required={addon.required}
             />
             <span className="checkbox-label">
-              {addon.label || 'Sí'}
+              {addon.true_label || 'Sí'}
             </span>
           </label>
         );
         
       default:
+        console.log(`Tipo de campo no reconocido: ${addon.type}`);
         return null;
     }
   };
 
-  if (!isOpen || !product) return null;
+  if (!isOpen) return null;
 
   return (
     <div className="customization-modal-overlay" onClick={onClose}>
       <div className="customization-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="close-button" onClick={onClose}>
+        <button className="modal-close" onClick={onClose}>
           <X size={24} />
         </button>
-
-        <h2>Personaliza tu {product.name}</h2>
-
+        
+        <h2>Personalizar Pedido</h2>
+        
         {loading ? (
           <div className="loading-container">
             <Loader className="loading-spinner" size={48} />
@@ -695,13 +803,13 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
                 {productAddons.map((addon, index) => (
                   <div key={addon.id || addon.name || index} className="addon-field">
                     <label className="addon-label">
-                      {addon.title || addon.name}
+                      {addon.label || addon.title || addon.name || 'Campo adicional'}
                       {addon.required && <span className="required">*</span>}
-                      {addon.price && addon.price > 0 && (
+                      {(addon.pricing?.enabled && addon.pricing?.amount > 0) && (
                         <span className="addon-price">
-                          {addon.price_type === 'quantity_based' 
-                            ? ` (+${formatPrice(addon.price)} por unidad)`
-                            : ` (+${formatPrice(addon.price)})`
+                          {addon.pricing.type === 'quantity_based' 
+                            ? ` (+${formatPrice(addon.pricing.amount)} por unidad)`
+                            : ` (+${formatPrice(addon.pricing.amount)})`
                           }
                         </span>
                       )}
@@ -740,66 +848,57 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
                 value={specialInstructions}
                 onChange={(e) => setSpecialInstructions(e.target.value)}
                 placeholder="Ej: Sin cebolla, extra queso, etc."
-                maxLength={200}
+                rows={3}
               />
-              <span className="char-count">
-                {specialInstructions.length}/200
-              </span>
             </div>
 
-            {/* Controles de cantidad y precio */}
-            <div className="customization-section quantity-controls">
+            {/* Cantidad y precio */}
+            <div className="quantity-price-section">
               <div className="quantity-selector">
-                <button 
-                  className="quantity-btn"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={quantity <= 1}
-                >
-                  <Minus size={16} />
-                </button>
-                <span className="quantity-value">{quantity}</span>
-                <button 
-                  className="quantity-btn"
-                  onClick={() => setQuantity(quantity + 1)}
-                  disabled={selectedVariation && selectedVariation.stock_quantity && 
-                           quantity >= selectedVariation.stock_quantity}
-                >
-                  <Plus size={16} />
-                </button>
+                <h4>Cantidad</h4>
+                <div className="quantity-controls">
+                  <button 
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                  >
+                    <Minus size={20} />
+                  </button>
+                  <span className="quantity-value">{quantity}</span>
+                  <button 
+                    onClick={() => setQuantity(quantity + 1)}
+                    disabled={selectedVariation?.stock_status === 'outofstock'}
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
               </div>
-              <div className="quantity-price">
-                <span className="price-label">Precio unitario</span>
-                <span className="price-value">{formatPrice(totalPrice / quantity)}</span>
+              
+              <div className="price-info">
+                <h4>Total</h4>
+                <p className="total-price">{formatPrice(totalPrice)}</p>
               </div>
             </div>
+
+            {/* Botón agregar al carrito */}
+            <button 
+              className={`add-to-cart-button ${addingToCart ? 'loading' : ''}`}
+              onClick={handleAddToCart}
+              disabled={addingToCart || (selectedVariation?.stock_status === 'outofstock')}
+            >
+              {addingToCart ? (
+                <>
+                  <Loader className="button-spinner" size={20} />
+                  Agregando...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart size={20} />
+                  Agregar al Carrito
+                </>
+              )}
+            </button>
           </>
         )}
-
-        {/* Footer con precio total y botón de agregar */}
-        <div className="customization-footer">
-          <div className="total-info">
-            <span className="total-label">Total</span>
-            <span className="total-price">{formatPrice(totalPrice)}</span>
-          </div>
-          <button 
-            className={`add-to-cart-btn ${addingToCart ? 'adding' : ''}`}
-            onClick={handleAddToCart}
-            disabled={loading || addingToCart || 
-                     (selectedVariation && selectedVariation.stock_status === 'outofstock')}
-          >
-            {addingToCart ? (
-              <>
-                <Loader className="btn-spinner" size={20} />
-                <span>Agregando...</span>
-              </>
-            ) : (
-              <>
-                <Check className="btn-icon" size={20} />
-                <span>Agregar al carrito</span>
-              </>
-            )}
-          </button>
-        </div>
       </div>
     </div>
   );

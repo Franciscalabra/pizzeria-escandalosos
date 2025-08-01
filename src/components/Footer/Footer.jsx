@@ -16,7 +16,7 @@ const Footer = () => {
               <h3 className="footer-brand">ESCANDALOSOS</h3>
               <p className="footer-tagline">Pizza Premium</p>
               <p className="footer-description">
-                La mejor pizza artesanal de la ciudad, hecha con amor y los mejores ingredientes.
+                Dark kitchen Isla de maipo
               </p>
               <div className="social-links">
                 <a href="#" aria-label="Facebook" className="social-link">
@@ -48,11 +48,11 @@ const Footer = () => {
               <div className="contact-info">
                 <div className="contact-item">
                   <MapPin size={18} />
-                  <span>Av. Principal 123, Santiago</span>
+                  <span>Camino las parcelas 12, isla de maipo</span>
                 </div>
                 <div className="contact-item">
                   <Phone size={18} />
-                  <span>+56 9 1234 5678</span>
+                  <span>+56 942740261</span>
                 </div>
                 <div className="contact-item">
                   <Mail size={18} />
@@ -60,7 +60,10 @@ const Footer = () => {
                 </div>
                 <div className="contact-item">
                   <Clock size={18} />
-                  <span>Lun-Dom: 12:00 - 23:00</span>
+                  <span>Lunes a jueves: 18:00 - 22:00 hrs</span>
+                    <span>Viernes: 18:00 - 23:00 hrs</span>
+                    <span>Sábado: 13:00 - 23:00 hrs</span>
+                    <span>Domingo: 13:00 - 22:00 hrs</span>
                 </div>
               </div>
             </div>

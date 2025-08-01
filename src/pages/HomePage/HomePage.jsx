@@ -1,6 +1,6 @@
 // src/pages/HomePage/HomePage.jsx
 import React, { useState, useEffect } from 'react';
-import { Search, Tag, Pizza, Clock, Percent } from 'lucide-react';
+import { Search, Clock, Pizza, Percent, Tag, Star } from 'lucide-react';
 import { useWooCommerce } from '../../hooks/useWooCommerce';
 import ProductCard from '../../components/ProductCard/ProductCard';
 import ProductModal from '../../components/ProductModal/ProductModal';
@@ -9,21 +9,22 @@ import './HomePage.css';
 
 const HomePage = () => {
   const { products, categories, loading } = useWooCommerce();
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
-  const [filteredProducts, setFilteredProducts] = useState([]);
 
+  // Actualizar productos filtrados cuando cambian los productos, categoría o búsqueda
   useEffect(() => {
     filterProducts();
-  }, [products, searchTerm, selectedCategory]);
+  }, [products, selectedCategory, searchTerm]);
 
   const filterProducts = () => {
     let filtered = [...products];
 
-    // Filtrar por búsqueda
+    // Filtrar por término de búsqueda
     if (searchTerm) {
       filtered = filtered.filter(product =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -33,19 +34,9 @@ const HomePage = () => {
 
     // Filtrar por categoría
     if (selectedCategory !== 'all') {
-      if (selectedCategory === 'promos') {
-        filtered = filtered.filter(product => 
-          product.on_sale || product.categories?.some(cat => cat.slug === 'promociones')
-        );
-      } else if (selectedCategory === 'combos') {
-        filtered = filtered.filter(product => 
-          product.categories?.some(cat => cat.slug === 'combos')
-        );
-      } else {
-        filtered = filtered.filter(product =>
-          product.categories?.some(cat => cat.id === parseInt(selectedCategory))
-        );
-      }
+      filtered = filtered.filter(product =>
+        product.categories?.some(cat => cat.id === parseInt(selectedCategory))
+      );
     }
 
     setFilteredProducts(filtered);
@@ -102,7 +93,7 @@ const HomePage = () => {
             <Search className="search-icon" size={20} />
             <input
               type="text"
-              placeholder="Buscar pizzas, bebidas, postres..."
+              placeholder="Buscar en nuestro menú..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
@@ -136,19 +127,6 @@ const HomePage = () => {
               onClick={() => setSelectedCategory('all')}
             >
               Todos
-            </button>
-            <button
-              className={`category-btn promo-category ${selectedCategory === 'promos' ? 'active' : ''}`}
-              onClick={() => setSelectedCategory('promos')}
-            >
-              <Tag size={16} />
-              Promociones
-            </button>
-            <button
-              className={`category-btn ${selectedCategory === 'combos' ? 'active' : ''}`}
-              onClick={() => setSelectedCategory('combos')}
-            >
-              Combos
             </button>
             {categories.map(category => (
               <button
