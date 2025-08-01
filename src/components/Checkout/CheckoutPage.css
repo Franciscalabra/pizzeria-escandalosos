@@ -258,14 +258,14 @@
 }
 
 .checkout-form-input.error {
-  border-color: #ef4444;
+  border-color: #f70295;
   background: #fef2f2;
 }
 
 .checkout-form-error {
   display: block;
   font-size: 0.75rem;
-  color: #ef4444;
+  color: #f70295;
   margin-top: 0.25rem;
   font-weight: 500;
 }

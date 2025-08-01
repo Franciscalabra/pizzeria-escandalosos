@@ -74,18 +74,21 @@ const HomePage = () => {
       {/* Barra de promociones */}
       <div className="promo-bar">
         <Tag size={16} />
-        <span>¡Envío gratis en pedidos sobre $25.000!</span>
+        <span>¡Promos todos los dias!</span>
       </div>
 
       {/* Hero Section */}
-      <section className="hero-section">
+      <section className="hero-section" style={{
+        background: `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('http://escandalosospizzas.cl/wp/wp-content/uploads/2025/08/Diseno-sin-titulo.png') center/cover`,
+        backgroundColor: '#000'
+      }}>
         <div className="hero-content">
           <h1 className="hero-title">
             <span className="hero-highlight">ESCANDALOSOS</span>
-            <span className="hero-subtitle">Pizza Premium</span>
+            <span className="hero-subtitle">Isla de maipo</span>
           </h1>
           <p className="hero-description">
-            La mejor pizza artesanal de Santiago, hecha con amor y los mejores ingredientes
+            Masa delgada, ingredientes de calidad, the best pizza para ti
           </p>
           
           {/* Barra de búsqueda */}
@@ -118,25 +121,43 @@ const HomePage = () => {
         </div>
       </section>
 
+      {/* Botón Todos */}
+      <section className="view-all-section">
+        <div className="container">
+          <button
+            className={`view-all-btn ${selectedCategory === 'all' ? 'active' : ''}`}
+            onClick={() => setSelectedCategory('all')}
+          >
+            Ver todos los productos
+          </button>
+        </div>
+      </section>
+
       {/* Categorías */}
       <section className="categories-section">
         <div className="container">
           <div className="categories-wrapper">
-            <button
-              className={`category-btn ${selectedCategory === 'all' ? 'active' : ''}`}
-              onClick={() => setSelectedCategory('all')}
-            >
-              Todos
-            </button>
-            {categories.map(category => (
-              <button
-                key={category.id}
-                className={`category-btn ${selectedCategory === category.id.toString() ? 'active' : ''}`}
-                onClick={() => setSelectedCategory(category.id.toString())}
-              >
-                {category.name}
-              </button>
-            ))}
+            {categories
+              .filter(category => category.name.toLowerCase() !== 'uncategorized')
+              .sort((a, b) => {
+                const order = ['promos', 'especiales', 'clásicas', 'premium', 'agregados', 'bebidas'];
+                const aIndex = order.findIndex(name => a.name.toLowerCase().includes(name));
+                const bIndex = order.findIndex(name => b.name.toLowerCase().includes(name));
+                
+                if (aIndex === -1 && bIndex === -1) return 0;
+                if (aIndex === -1) return 1;
+                if (bIndex === -1) return -1;
+                return aIndex - bIndex;
+              })
+              .map(category => (
+                <button
+                  key={category.id}
+                  className={`category-btn ${selectedCategory === category.id.toString() ? 'active' : ''}`}
+                  onClick={() => setSelectedCategory(category.id.toString())}
+                >
+                  {category.name}
+                </button>
+              ))}
           </div>
         </div>
       </section>

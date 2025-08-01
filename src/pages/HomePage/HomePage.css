@@ -2,7 +2,7 @@
 
 /* Barra de Promociones */
 .promo-bar {
-  background: #e91e63;
+  background: #f70295;
   color: white;
   padding: 0.75rem;
   text-align: center;
@@ -31,6 +31,9 @@
   padding: 4rem 0;
   position: relative;
   overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .hero-section::before {
@@ -81,7 +84,7 @@
   display: block;
   font-size: 1.25rem;
   font-weight: 400;
-  color: #e91e63;
+  color: #f70295;
   letter-spacing: 4px;
   text-transform: uppercase;
 }
@@ -123,7 +126,7 @@
 
 .search-input:focus {
   outline: none;
-  border-color: #e91e63;
+  border-color: #f70295;
   box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.1);
 }
 
@@ -149,7 +152,39 @@
 }
 
 .feature svg {
-  color: #e91e63;
+  color: #f70295;
+}
+
+/* Sección Ver Todos */
+.view-all-section {
+  padding: 1rem 0;
+  background: #f8f8f8;
+}
+
+.view-all-btn {
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  display: block;
+  padding: 1rem 2rem;
+  background: #000000;
+  border: none;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.view-all-btn:hover {
+  background: #333333;
+  color: white;
+}
+
+.view-all-btn.active {
+  background: #f70295;
+  color: white;
 }
 
 /* Categories Section */
@@ -179,9 +214,9 @@
 
 .category-btn {
   padding: 0.75rem 1.5rem;
-  border: 2px solid #000000;
-  background: white;
-  border-radius: 50px;
+  border: none;
+  background: #000000;
+  border-radius: 25px;
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
@@ -189,37 +224,34 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #000000;
+  color: #ffffff;
 }
 
 .category-btn:hover {
-  background: #000000;
+  background: #333333;
   color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .category-btn.active {
-  background: #000000;
+  background: #f70295;
   color: white;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .promo-category {
-  background: #e91e63;
+  background: #f70295;
   color: white;
-  border-color: #e91e63;
+  border-color: #f70295;
 }
 
 .promo-category:hover {
-  background: #c2185b;
-  border-color: #c2185b;
+  background: #f70295;
+  border-color: #f70295;
   transform: translateY(-2px);
 }
 
 .promo-category.active {
-  background: #ad1457;
-  border-color: #ad1457;
+  background: #f70295;
+  border-color: #f70295;
 }
 
 /* Products Section */
@@ -253,7 +285,7 @@
   width: 60px;
   height: 60px;
   border: 4px solid #f5f5f5;
-  border-top-color: #e91e63;
+  border-top-color: #f70295;
   border-radius: 50%;
   margin: 0 auto 1.5rem;
   animation: spin 1s linear infinite;
@@ -289,7 +321,7 @@
 }
 
 .no-results .btn {
-  background: #e91e63;
+  background: #f70295;
   color: white;
   padding: 0.75rem 2rem;
   border-radius: 50px;
@@ -300,8 +332,16 @@
 }
 
 .no-results .btn:hover {
-  background: #c2185b;
+  background: #f70295;
   transform: translateY(-2px);
+}
+
+/* Hero Section Images */
+.hero-section img {
+  width: 100%;
+  height: auto;
+  max-height: 600px;
+  object-fit: cover;
 }
 
 /* Animations */
@@ -342,6 +382,18 @@
   
   .hero-section {
     padding: 3rem 0;
+    /* Ajuste para imagen de fondo en móvil */
+    background-attachment: scroll;
+    background-size: cover;
+    background-position: center center;
+  }
+  
+  /* Ajuste de imagen en hero para móvil */
+  .hero-section img {
+    max-height: 300px;
+    width: 100%;
+    object-fit: cover;
+    object-position: center;
   }
   
   .categories-section {
@@ -351,11 +403,21 @@
   
   .categories-wrapper {
     gap: 0.5rem;
+    padding: 0.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  .categories-wrapper::-webkit-scrollbar {
+    display: none;
   }
   
   .category-btn {
     padding: 0.5rem 1rem;
     font-size: 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   
   .products-grid {
@@ -369,5 +431,52 @@
   
   .feature {
     font-size: 0.875rem;
+  }
+  
+  .view-all-btn {
+    font-size: 1rem;
+    padding: 0.75rem 1.5rem;
+  }
+}
+
+/* Ajustes adicionales para pantallas muy pequeñas */
+@media (max-width: 480px) {
+  .hero-highlight {
+    font-size: 2rem;
+  }
+  
+  .hero-section {
+    padding: 2rem 0;
+  }
+  
+  .hero-section img {
+    max-height: 250px;
+  }
+  
+  .search-input {
+    padding: 1rem 1rem 1rem 3rem;
+    font-size: 0.875rem;
+  }
+  
+  .products-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+/* Fix para imágenes de fondo en diferentes secciones */
+.hero-section,
+.footer {
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+}
+
+@media (max-width: 768px) {
+  .hero-section,
+  .footer {
+    background-attachment: scroll;
+    background-size: cover;
+    background-position: center;
   }
 }

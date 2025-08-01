@@ -756,9 +756,15 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
               )}
               <div className="product-details">
                 <h3>{product.name}</h3>
+                {/* Mostrar descripción corta si está disponible */}
                 {product.short_description && (
                   <p className="product-description" 
                      dangerouslySetInnerHTML={{ __html: product.short_description }} />
+                )}
+                {/* Si no hay descripción corta, mostrar la descripción normal completa */}
+                {!product.short_description && product.description && (
+                  <p className="product-description" 
+                     dangerouslySetInnerHTML={{ __html: product.description }} />
                 )}
               </div>
             </div>

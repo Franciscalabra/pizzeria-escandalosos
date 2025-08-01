@@ -17,11 +17,23 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  X
+  X,
+  Loader
 } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
 import woocommerceApi from '../../services/woocommerceApi';
 import './CheckoutPage.css';
+
+// Agregar estilos en línea para el spinner si no están en el CSS
+const spinnerStyle = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .spinner {
+    animation: spin 1s linear infinite;
+  }
+`;
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -38,11 +50,18 @@ const CheckoutPage = () => {
   // Estados principales
   const [currentStep, setCurrentStep] = useState(1);
   const [orderType, setOrderType] = useState('delivery');
-  const [deliveryFee] = useState(2500);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState(null);
   const [showOrderSummary, setShowOrderSummary] = useState(true);
+  
+  // Estados para datos de WooCommerce
+  const [shippingMethods, setShippingMethods] = useState([]);
+  const [selectedShippingMethod, setSelectedShippingMethod] = useState(null);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [storeInfo, setStoreInfo] = useState(null);
+  const [deliveryFee, setDeliveryFee] = useState(0);
   
   // Estados del formulario con localStorage
   const [formData, setFormData] = useState(() => {
@@ -55,7 +74,7 @@ const CheckoutPage = () => {
       neighborhood: '',
       reference: '',
       notes: '',
-      paymentMethod: 'cash',
+      paymentMethod: '',
       cashAmount: ''
     };
   });
@@ -68,6 +87,64 @@ const CheckoutPage = () => {
     return saved ? JSON.parse(saved) : [];
   });
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+
+  // Cargar datos de WooCommerce al montar el componente
+  useEffect(() => {
+    const loadWooCommerceData = async () => {
+      setInitialLoading(true);
+      try {
+        // Cargar métodos de envío, métodos de pago e información de la tienda
+        const [shippingData, paymentData, storeData] = await Promise.all([
+          woocommerceApi.getShippingMethods(),
+          woocommerceApi.getPaymentGateways(),
+          woocommerceApi.getStoreInfo()
+        ]);
+        
+        setShippingMethods(shippingData);
+        setPaymentMethods(paymentData);
+        setStoreInfo(storeData);
+        
+        // Establecer el primer método de pago disponible como predeterminado
+        if (paymentData.length > 0 && !formData.paymentMethod) {
+          setFormData(prev => ({ ...prev, paymentMethod: paymentData[0].id }));
+        }
+        
+        // Calcular el costo de envío inicial
+        if (shippingData.length > 0) {
+          const defaultZone = shippingData[0];
+          const shippingMethod = defaultZone.methods.find(m => 
+            m.methodId === 'flat_rate' || m.methodId === 'local_delivery'
+          );
+          
+          if (shippingMethod) {
+            setSelectedShippingMethod(shippingMethod);
+            const cost = woocommerceApi.calculateShippingCost(
+              shippingData, 
+              getCartTotal()
+            );
+            setDeliveryFee(cost);
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando datos de WooCommerce:', error);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    
+    loadWooCommerceData();
+  }, []);
+
+  // Actualizar costo de envío cuando cambie el subtotal o el tipo de pedido
+  useEffect(() => {
+    if (orderType === 'delivery' && shippingMethods.length > 0) {
+      const cost = woocommerceApi.calculateShippingCost(
+        shippingMethods, 
+        getCartTotal()
+      );
+      setDeliveryFee(cost);
+    }
+  }, [orderType, shippingMethods, getCartTotal]);
 
   // Guardar progreso en localStorage
   useEffect(() => {
@@ -121,7 +198,7 @@ const CheckoutPage = () => {
         break;
       
       case 'cashAmount':
-        if (formData.paymentMethod === 'cash' && value) {
+        if (formData.paymentMethod === 'cod' && value) {
           const amount = parseFloat(value);
           const total = getCartTotal() + (orderType === 'delivery' ? deliveryFee : 0);
           if (amount < total) error = `El monto debe ser mayor a ${formatPrice(total)}`;
@@ -171,8 +248,11 @@ const CheckoutPage = () => {
         break;
       
       case 3:
-        if (formData.paymentMethod === 'cash' && formData.cashAmount) {
+        if (formData.paymentMethod === 'cod' && formData.cashAmount) {
           stepErrors.cashAmount = validateField('cashAmount', formData.cashAmount);
+        }
+        if (!formData.paymentMethod) {
+          stepErrors.paymentMethod = 'Debes seleccionar un método de pago';
         }
         break;
       
@@ -232,19 +312,27 @@ const CheckoutPage = () => {
     setLoading(true);
     
     try {
+      // Encontrar el método de pago seleccionado
+      const selectedPaymentMethod = paymentMethods.find(m => m.id === formData.paymentMethod);
+      
       const orderData = {
         customerName: formData.customerName,
         email: formData.email,
         phone: formData.phone,
         orderType,
-        items: cart,
-        total: getCartTotal() + (orderType === 'delivery' ? deliveryFee : 0),
+        items: cart.map(item => ({
+          productId: item.productId,
+          variationId: item.variationId,
+          quantity: item.quantity,
+          customizations: item.customizations
+        })),
         address: orderType === 'delivery' ? formData.address : null,
         neighborhood: orderType === 'delivery' ? formData.neighborhood : null,
         reference: orderType === 'delivery' ? formData.reference : null,
         paymentMethod: formData.paymentMethod,
-        cashAmount: formData.paymentMethod === 'cash' ? formData.cashAmount : null,
-        deliveryFee: orderType === 'delivery' ? deliveryFee : null,
+        paymentMethodTitle: selectedPaymentMethod?.title || formData.paymentMethod,
+        cashAmount: formData.paymentMethod === 'cod' ? formData.cashAmount : null,
+        shippingMethod: orderType === 'delivery' ? selectedShippingMethod : null,
         notes: formData.notes
       };
 
@@ -282,8 +370,44 @@ const CheckoutPage = () => {
     }
   };
 
+  // Función para obtener el ícono del método de pago
+  const getPaymentIcon = (methodId) => {
+    const icons = {
+      'cod': DollarSign,
+      'bacs': DollarSign,
+      'cheque': DollarSign,
+      'paypal': CreditCard,
+      'stripe': CreditCard,
+      'mercadopago': CreditCard,
+      'webpay': CreditCard,
+      'transbank': CreditCard,
+      'flow': CreditCard
+    };
+    
+    return icons[methodId] || CreditCard;
+  };
+
   const subtotal = getCartTotal();
   const total = subtotal + (orderType === 'delivery' ? deliveryFee : 0);
+
+  if (initialLoading) {
+    return (
+      <div className="checkout-page">
+        <style>{spinnerStyle}</style>
+        <div className="checkout-loading" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '400px',
+          gap: '1rem'
+        }}>
+          <Loader className="spinner" size={48} />
+          <p>Cargando información...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (orderSuccess) {
     return (
@@ -296,9 +420,9 @@ const CheckoutPage = () => {
           <p className="checkout-success-order">Pedido #{orderId}</p>
           <p className="checkout-success-message">
             {orderType === 'delivery' 
-              ? 'Tu pedido será entregado en 30-45 minutos'
-              : 'Tu pedido estará listo para retirar en 20-30 minutos'
-            }
+              ? `Tu pedido será entregado en ${storeInfo?.deliveryTime || '30-45 minutos'}`
+            : `Te avisaremos cuando tu pedido esté listo para retiro`
+}
           </p>
           <div className="checkout-success-details">
             <p>Te hemos enviado un email con los detalles de tu pedido.</p>
@@ -371,7 +495,9 @@ const CheckoutPage = () => {
                       <Truck size={32} />
                       <h3>Delivery</h3>
                       <p>Recibe en tu domicilio</p>
-                      <span className="checkout-order-price">Desde {formatPrice(deliveryFee)}</span>
+                      <span className="checkout-order-price">
+                        {deliveryFee > 0 ? `por ${formatPrice(deliveryFee)}` : 'Calculando...'}
+                      </span>
                     </button>
 
                     <button
@@ -541,11 +667,21 @@ const CheckoutPage = () => {
                 ) : (
                   <div className="checkout-pickup-info">
                     <Clock size={48} className="checkout-pickup-icon" />
-                    <h3>Tu pedido estará listo en 20-30 minutos</h3>
+                    <h3>Tu pedido estará listo en {storeInfo?.pickupTime || '20-30 minutos'}</h3>
                     <div className="checkout-pickup-details">
-                      <p><strong>Dirección:</strong> Av. Principal 456, Santiago Centro</p>
-                      <p><strong>Horario:</strong> Lun-Dom 12:00 - 23:00</p>
-                      <p><strong>Teléfono:</strong> +56 2 1234 5678</p>
+                      <p><strong>Dirección:</strong> {storeInfo?.address ? 
+                        `${storeInfo.address}, ${storeInfo.city}` : 
+                        'Cargando dirección...'
+                      }</p>
+                      <p><strong>Horario:</strong> {storeInfo?.schedule ? 
+                        Object.entries(storeInfo.schedule).map(([key, value]) => (
+                          <span key={key}>
+                            {value.label}: {value.open} - {value.close}<br />
+                          </span>
+                        )) : 
+                        'Cargando horarios...'
+                      }</p>
+                      <p><strong>Teléfono:</strong> {storeInfo?.phone || 'Cargando...'}</p>
                     </div>
                     <div className="checkout-pickup-note">
                       <AlertCircle size={16} />
@@ -562,24 +698,42 @@ const CheckoutPage = () => {
                 <h2 className="checkout-section-title">Método de Pago</h2>
                 
                 <div className="checkout-payment-options">
-                  <label className="checkout-payment-option">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="cash"
-                      checked={formData.paymentMethod === 'cash'}
-                      onChange={handleInputChange}
-                    />
-                    <div className="checkout-payment-content">
-                      <DollarSign size={24} />
-                      <div>
-                        <h3>Efectivo</h3>
-                        <p>Paga al recibir tu pedido</p>
-                      </div>
+                  {paymentMethods.length > 0 ? (
+                    paymentMethods.map((method) => {
+                      const IconComponent = getPaymentIcon(method.id);
+                      const isDisabled = false; // Todos los métodos habilitados desde WooCommerce están disponibles
+                      
+                      return (
+                        <label 
+                          key={method.id} 
+                          className={`checkout-payment-option ${isDisabled ? 'disabled' : ''}`}
+                        >
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value={method.id}
+                            checked={formData.paymentMethod === method.id}
+                            onChange={handleInputChange}
+                            disabled={isDisabled}
+                          />
+                          <div className="checkout-payment-content">
+                            <IconComponent size={24} />
+                            <div>
+                              <h3>{method.title}</h3>
+                              <p>{method.description || 'Método de pago disponible'}</p>
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })
+                  ) : (
+                    <div className="checkout-no-payment-methods">
+                      <AlertCircle size={32} />
+                      <p>No hay métodos de pago disponibles</p>
                     </div>
-                  </label>
+                  )}
 
-                  {formData.paymentMethod === 'cash' && (
+                  {formData.paymentMethod === 'cod' && (
                     <div className="checkout-cash-amount">
                       <label className="checkout-form-label">
                         ¿Con cuánto pagarás? (opcional)
@@ -602,23 +756,11 @@ const CheckoutPage = () => {
                       </span>
                     </div>
                   )}
-
-                  <label className="checkout-payment-option disabled">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="card"
-                      disabled
-                    />
-                    <div className="checkout-payment-content">
-                      <CreditCard size={24} />
-                      <div>
-                        <h3>Tarjeta</h3>
-                        <p>Próximamente disponible</p>
-                      </div>
-                    </div>
-                  </label>
                 </div>
+
+                {errors.paymentMethod && (
+                  <span className="checkout-form-error">{errors.paymentMethod}</span>
+                )}
 
                 <div className="checkout-form-group">
                   <label className="checkout-form-label">
@@ -670,7 +812,7 @@ const CheckoutPage = () => {
                     {orderType === 'delivery' && (
                       <div className="checkout-summary-row">
                         <span>Delivery</span>
-                        <span>{formatPrice(deliveryFee)}</span>
+                        <span>{deliveryFee > 0 ? formatPrice(deliveryFee) : 'Envío gratis'}</span>
                       </div>
                     )}
                     <div className="checkout-summary-row checkout-summary-total">
@@ -694,7 +836,7 @@ const CheckoutPage = () => {
               ) : (
                 <button
                   onClick={handleSubmitOrder}
-                  disabled={loading}
+                  disabled={loading || !formData.paymentMethod}
                   className="btn btn-primary checkout-confirm-btn"
                 >
                   {loading ? 'Procesando...' : 'Confirmar Pedido'}

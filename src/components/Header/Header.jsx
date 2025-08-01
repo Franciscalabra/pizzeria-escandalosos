@@ -17,7 +17,7 @@ const Header = ({ onCartClick }) => {
       <div className="header-container">
         <Link to="/" className="logo">
           ESCANDALOSOS
-          <span className="logo-subtitle">PIZZA PREMIUM</span>
+          <span className="logo-subtitle">Isla de Maipo</span>
         </Link>
         
         <nav className="nav">

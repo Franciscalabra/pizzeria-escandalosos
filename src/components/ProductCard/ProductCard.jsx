@@ -64,13 +64,6 @@ const ProductCard = ({ product, onCustomize }) => {
     }
   };
 
-  const handleCardClick = () => {
-    // Al hacer clic en la tarjeta, mostrar detalles o personalización
-    if (onCustomize && typeof onCustomize === 'function') {
-      onCustomize(product);
-    }
-  };
-
   // Para productos variables, mostrar rango de precios
   const getPriceDisplay = () => {
     if (product.type === 'variable' && product.price_range) {
@@ -140,7 +133,7 @@ const ProductCard = ({ product, onCustomize }) => {
   };
 
   return (
-    <div className="product-card" onClick={handleCardClick}>
+    <div className="product-card">
       <div className="product-badges">
         {getBadges()}
       </div>
@@ -168,9 +161,9 @@ const ProductCard = ({ product, onCustomize }) => {
       <div className="product-info">
         <h3 className="product-name">{product.name}</h3>
         
-        {product.short_description && (
+        {product.description && (
           <p className="product-description" 
-             dangerouslySetInnerHTML={{ __html: product.short_description }} 
+             dangerouslySetInnerHTML={{ __html: product.description }} 
           />
         )}
         

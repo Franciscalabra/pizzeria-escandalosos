@@ -177,8 +177,11 @@ class WooCommerceAPI {
         })
       );
       
-      this.cache.shippingMethods = shippingData;
-      return shippingData;
+      // Filtrar las zonas que no tienen métodos de envío habilitados
+      const zonesWithMethods = shippingData.filter(zone => zone.methods && zone.methods.length > 0);
+      
+      this.cache.shippingMethods = zonesWithMethods;
+      return zonesWithMethods;
     } catch (error) {
       console.error('Error obteniendo métodos de envío:', error);
       return this.getDefaultShippingMethods();

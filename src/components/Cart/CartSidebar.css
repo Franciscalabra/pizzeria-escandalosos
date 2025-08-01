@@ -204,7 +204,7 @@
 }
 
 .remove-btn:hover {
-  color: #ef4444;
+  color: #f70295;
 }
 
 .cart-item-total {
@@ -236,8 +236,8 @@
 }
 
 .clear-cart-btn:hover {
-  border-color: #ef4444;
-  color: #ef4444;
+  border-color: #f70295;
+  color: #f70295;
 }
 
 .cart-totals {

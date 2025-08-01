@@ -1,9 +1,9 @@
 /* src/App.css */
 
 :root {
-  --primary-color: #e91e63;
-  --primary-hover: #c2185b;
-  --primary-dark: #ad1457;
+  --primary-color: #f70295;
+  --primary-hover: #f70295;
+  --primary-dark: #f70295;
   --secondary-color: #000000;
   --text-color: #000000;
   --text-light: #666666;
@@ -15,8 +15,8 @@
   --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   --success-color: #4caf50;
-  --error-color: #d32f2f;
-  --warning-color: #f57c00;
+  --error-color: #f70295;
+  --warning-color: #f70295;
 }
 
 * {

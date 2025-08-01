@@ -16,7 +16,7 @@ const Footer = () => {
               <h3 className="footer-brand">ESCANDALOSOS</h3>
               <p className="footer-tagline">Pizza Premium</p>
               <p className="footer-description">
-                Dark kitchen Isla de maipo
+                Dark kitchen Isla de Maipo
               </p>
               <div className="social-links">
                 <a href="#" aria-label="Facebook" className="social-link">
@@ -48,7 +48,7 @@ const Footer = () => {
               <div className="contact-info">
                 <div className="contact-item">
                   <MapPin size={18} />
-                  <span>Camino las parcelas 12, isla de maipo</span>
+                  <span>Camino las parcelas 12, Isla de Maipo</span>
                 </div>
                 <div className="contact-item">
                   <Phone size={18} />
@@ -58,12 +58,31 @@ const Footer = () => {
                   <Mail size={18} />
                   <span>hola@escandalosospizza.cl</span>
                 </div>
+              </div>
+              
+              {/* Horarios separados */}
+              <h4 className="footer-title" style={{ marginTop: '1.5rem' }}>Horarios</h4>
+              <div className="contact-info">
                 <div className="contact-item">
                   <Clock size={18} />
-                  <span>Lunes a jueves: 18:00 - 22:00 hrs</span>
-                    <span>Viernes: 18:00 - 23:00 hrs</span>
-                    <span>Sábado: 13:00 - 23:00 hrs</span>
-                    <span>Domingo: 13:00 - 22:00 hrs</span>
+                  <div className="schedule-list">
+                    <div className="schedule-item">
+                      <span className="schedule-day">Lun - Jue:</span>
+                      <span className="schedule-time">18:00 - 22:00</span>
+                    </div>
+                    <div className="schedule-item">
+                      <span className="schedule-day">Viernes:</span>
+                      <span className="schedule-time">18:00 - 23:00</span>
+                    </div>
+                    <div className="schedule-item">
+                      <span className="schedule-day">Sábado:</span>
+                      <span className="schedule-time">13:00 - 23:00</span>
+                    </div>
+                    <div className="schedule-item">
+                      <span className="schedule-day">Domingo:</span>
+                      <span className="schedule-time">13:00 - 22:00</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

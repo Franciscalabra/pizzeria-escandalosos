@@ -31,7 +31,7 @@
   font-size: 0.75rem;
   font-weight: 400;
   letter-spacing: 2px;
-  color: #e91e63;
+  color: #f70295;
   opacity: 0.9;
 }
 
@@ -58,12 +58,12 @@
   left: 0;
   width: 0;
   height: 2px;
-  background-color: #e91e63;
+  background-color: #f70295;
   transition: width 0.3s ease;
 }
 
 .nav-link:hover {
-  color: #e91e63;
+  color: #f70295;
 }
 
 .nav-link:hover::after {
@@ -71,7 +71,7 @@
 }
 
 .cart-button {
-  background-color: #e91e63;
+  background-color: #f70295;
   border: none;
   color: white;
   padding: 0.75rem;
@@ -86,7 +86,7 @@
 }
 
 .cart-button:hover {
-  background-color: #c2185b;
+  background-color: #f70295;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(233, 30, 99, 0.3);
 }
