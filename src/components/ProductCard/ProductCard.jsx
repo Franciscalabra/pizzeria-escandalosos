@@ -1,6 +1,6 @@
 // src/components/ProductCard/ProductCard.jsx
 import React, { useContext, useEffect, useState } from 'react';
-import { ShoppingCart, Tag, Clock, Flame, Star } from 'lucide-react';
+import { ShoppingCart, Tag, Flame, Star } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
 import escandalososApi from '../../services/escandalososApi';
 import './ProductCard.css';
@@ -85,15 +85,52 @@ const ProductCard = ({ product, onCustomize }) => {
 
   // Para productos variables, mostrar rango de precios
   const getPriceDisplay = () => {
-    if (product.type === 'variable' && product.price_range) {
+    // Para productos variables, mostrar el precio más alto (Familiar)
+    if (product.type === 'variable') {
+      // Primero intentar usar price_range si está disponible
+      if (product.price_range && product.price_range.max_price) {
+        return (
+          <div className="price-single">
+            <span className="product-price-sale">{formatPrice(product.price_range.max_price)}</span>
+          </div>
+        );
+      }
+      
+      // Si hay display_price (precio calculado), usarlo
+      if (product.display_price) {
+        return (
+          <div className="price-single">
+            <span className="product-price-sale">{formatPrice(product.display_price)}</span>
+          </div>
+        );
+      }
+      
+      // Intentar extraer el precio máximo del price_html
+      if (product.price_html) {
+        // El price_html contiene algo como: "$10.990 - $14.990"
+        // Vamos a extraer el precio más alto
+        const priceMatch = product.price_html.match(/\$[\d.]+/g);
+        if (priceMatch && priceMatch.length > 1) {
+          // Tomar el último precio (el más alto)
+          const maxPriceStr = priceMatch[priceMatch.length - 1].replace('$', '').replace('.', '');
+          const maxPrice = parseInt(maxPriceStr);
+          return (
+            <div className="price-single">
+              <span className="product-price-sale">{formatPrice(maxPrice)}</span>
+            </div>
+          );
+        }
+      }
+      
+      // Si no podemos obtener el precio máximo, mostrar el precio base
       return (
-        <div className="price-range">
-          <span className="price-from">Desde</span>
-          <span className="product-price-sale">{formatPrice(product.price_range.min_price)}</span>
+        <div className="price-single">
+          <span className="product-price-sale">{formatPrice(product.price)}</span>
         </div>
       );
     }
     
+    // Para productos simples
     return (
       <div className="price-single">
         {product.on_sale && product.regular_price && (
@@ -142,22 +179,12 @@ const ProductCard = ({ product, onCustomize }) => {
     if (isCombo) {
       badges.push(
         <div key="combo" className="product-badge combo">
-          🍕 COMBO
+          COMBO
         </div>
       );
     }
     
     return badges;
-  };
-
-  // Obtener tiempo de preparación estimado
-  const getPrepTime = () => {
-    if (product.categories?.some(cat => cat.slug === 'pizzas')) {
-      return '25-35 min';
-    } else if (product.categories?.some(cat => cat.slug === 'bebidas')) {
-      return '5 min';
-    }
-    return '15-25 min';
   };
 
   return (
@@ -194,24 +221,6 @@ const ProductCard = ({ product, onCustomize }) => {
              dangerouslySetInnerHTML={{ __html: product.description }} 
           />
         )}
-        
-        {/* Tiempo de preparación */}
-        <div className="product-meta">
-          <span className="prep-time">
-            <Clock size={14} />
-            {getPrepTime()}
-          </span>
-          {product.attributes?.length > 0 && (
-            <span className="variations-count">
-              {product.attributes[0].options.length} opciones
-            </span>
-          )}
-          {isCombo && (
-            <span className="combo-indicator">
-               Combo
-            </span>
-          )}
-        </div>
         
         <div className="product-footer">
           <div className="product-price">

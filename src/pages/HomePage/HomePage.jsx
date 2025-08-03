@@ -11,13 +11,25 @@ import './HomePage.css';
 
 const HomePage = () => {
   const { products, categories, loading } = useWooCommerce();
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
   const [showComboModal, setShowComboModal] = useState(false);
+
+  // Establecer "Promos" como categoría por defecto cuando se cargan las categorías
+  useEffect(() => {
+    if (categories.length > 0 && selectedCategory === null) {
+      const promosCategory = categories.find(cat => 
+        cat.name.toLowerCase().includes('promo')
+      );
+      if (promosCategory) {
+        setSelectedCategory(promosCategory.id.toString());
+      }
+    }
+  }, [categories, selectedCategory]);
 
   // Actualizar productos filtrados cuando cambian los productos, categoría o búsqueda
   useEffect(() => {
@@ -36,7 +48,7 @@ const HomePage = () => {
     }
 
     // Filtrar por categoría
-    if (selectedCategory !== 'all') {
+    if (selectedCategory !== 'all' && selectedCategory !== null) {
       filtered = filtered.filter(product =>
         product.categories?.some(cat => cat.id === parseInt(selectedCategory))
       );
@@ -126,11 +138,11 @@ const HomePage = () => {
           <div className="hero-features">
             <div className="feature">
               <Clock size={20} />
-              <span>30-45 min</span>
+              <span>45 min a 1 hora</span>
             </div>
             <div className="feature">
               <Pizza size={20} />
-              <span>Pizza artesanal</span>
+              <span>Masa artesanal</span>
             </div>
             <div className="feature">
               <Percent size={20} />

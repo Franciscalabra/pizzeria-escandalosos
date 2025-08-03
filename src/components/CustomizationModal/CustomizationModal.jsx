@@ -1,5 +1,5 @@
 // src/components/CustomizationModal/CustomizationModal.jsx
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import { X, Plus, Minus, Info, Check, Loader, Pizza, Upload, ShoppingCart } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
 import woocommerceApi from '../../services/woocommerceApi';
@@ -24,7 +24,6 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
   const [selectedVariation, setSelectedVariation] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [specialInstructions, setSpecialInstructions] = useState('');
-  const [totalPrice, setTotalPrice] = useState(0);
   const [addingToCart, setAddingToCart] = useState(false);
 
   // Reset estados cuando se abre el modal
@@ -34,11 +33,6 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
       loadProductData();
     }
   }, [isOpen, product]);
-
-  // Actualizar precio cuando cambia la selección
-  useEffect(() => {
-    updatePrice();
-  }, [selectedVariation, quantity, product, addonValues]);
 
   const resetForm = () => {
     setSelectedAttributes({});
@@ -56,14 +50,6 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
     setError(null);
     
     try {
-      // Debugging: Ver toda la estructura del producto
-      console.log('=== PRODUCTO COMPLETO ===');
-      console.log(product);
-      console.log('=== META DATA ===');
-      console.log(product.meta_data);
-      console.log('=== TODAS LAS PROPIEDADES ===');
-      console.log(Object.keys(product));
-      
       // Si es un producto variable, cargar variaciones
       if (product.type === 'variable') {
         const variationsData = await woocommerceApi.getProductVariations(product.id);
@@ -74,21 +60,47 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
           const variableAttributes = product.attributes.filter(attr => attr.variation);
           setAttributes(variableAttributes);
           
-          // Establecer valores por defecto
+          // Buscar la variación con el precio más alto
+          const highestPriceVariation = variationsData.reduce((prev, current) => {
+            const prevPrice = parseFloat(prev.price) || 0;
+            const currentPrice = parseFloat(current.price) || 0;
+            return currentPrice > prevPrice ? current : prev;
+          }, variationsData[0]);
+
+          // Establecer valores por defecto basados en la variación de mayor precio
           const defaultAttributes = {};
-          variableAttributes.forEach(attr => {
-            if (attr.options && attr.options.length > 0) {
-              defaultAttributes[attr.name] = attr.options[0];
-            }
-          });
-          setSelectedAttributes(defaultAttributes);
+          if (highestPriceVariation && highestPriceVariation.attributes) {
+            highestPriceVariation.attributes.forEach(varAttr => {
+              // Encontrar el atributo correspondiente en los atributos del producto
+              const productAttr = variableAttributes.find(attr => 
+                attr.name === varAttr.name || 
+                attr.name.toLowerCase() === varAttr.name.toLowerCase()
+              );
+              
+              if (productAttr) {
+                defaultAttributes[productAttr.name] = varAttr.option;
+              }
+            });
+          } else {
+            // Fallback: si no encontramos la variación de mayor precio
+            variableAttributes.forEach(attr => {
+              if (attr.options && attr.options.length > 0) {
+                // Si el atributo es "Tamaño", buscar "Familiar" primero
+                if (attr.name.toLowerCase() === 'tamaño' || attr.name.toLowerCase() === 'tamano') {
+                  const familiarOption = attr.options.find(opt => 
+                    opt.toLowerCase() === 'familiar'
+                  );
+                  defaultAttributes[attr.name] = familiarOption || attr.options[0];
+                } else {
+                  defaultAttributes[attr.name] = attr.options[0];
+                }
+              }
+            });
+          }
           
-          // Buscar variación por defecto
-          findMatchingVariation(defaultAttributes);
+          setSelectedAttributes(defaultAttributes);
+          setSelectedVariation(highestPriceVariation);
         }
-      } else {
-        // Para productos simples, establecer el precio directamente
-        setTotalPrice(parseFloat(product.price) * quantity);
       }
 
       // Cargar Advanced Product Fields si existen
@@ -103,18 +115,12 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
   };
 
   const loadProductAddons = async () => {
-    console.log('=== BUSCANDO ADDONS ===');
-    
     // Verificar si el producto tiene campos adicionales del plugin Advanced Product Fields
     if (product.meta_data) {
-      console.log('Meta data encontrada:', product.meta_data);
-      
       // Buscar el campo _wapf_fieldgroup
       const fieldGroupData = product.meta_data.find(meta => meta.key === '_wapf_fieldgroup');
       
       if (fieldGroupData && fieldGroupData.value) {
-        console.log('Field group data encontrada:', fieldGroupData.value);
-        
         // El valor puede ser un ID de grupo o un array de IDs
         let groupIds = [];
         if (Array.isArray(fieldGroupData.value)) {
@@ -125,13 +131,8 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
           groupIds = [fieldGroupData.value];
         }
         
-        console.log('Group IDs:', groupIds);
-        
         // Si tenemos IDs de grupos, necesitamos obtener los campos de esos grupos
-        // Para esto necesitamos hacer una petición adicional o el plugin debe exponer los campos
-        
         // Por ahora, vamos a buscar si hay campos directamente en el producto
-        // El plugin también puede guardar los campos compilados en otro meta field
         const possibleFieldKeys = [
           '_wapf_fields',
           '_wapf_field_groups_fields',
@@ -142,7 +143,6 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         for (const key of possibleFieldKeys) {
           const fieldsData = product.meta_data.find(meta => meta.key === key);
           if (fieldsData && fieldsData.value) {
-            console.log(`Campos encontrados con key "${key}":`, fieldsData.value);
             const fields = Array.isArray(fieldsData.value) ? fieldsData.value : [fieldsData.value];
             setProductAddons(fields);
             initializeAddonValues(fields);
@@ -152,31 +152,20 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         
         // Si no encontramos los campos compilados, intentamos obtenerlos via API personalizada
         if (groupIds.length > 0 || true) { // Siempre intentar con la API personalizada
-          console.log('Intentando obtener campos del producto via API...');
-          console.log('ID del producto:', product.id);
-          
           try {
             // Construir la URL completa
             const apiUrl = `https://escandalosospizzas.cl/wp/wp-json/custom/v1/product-fields/${product.id}`;
-            console.log('URL de la API:', apiUrl);
             
             const response = await fetch(apiUrl);
-            console.log('Status de respuesta:', response.status);
             
             if (response.ok) {
               const data = await response.json();
-              console.log('Respuesta completa de la API:', data);
-              console.log('Tipo de respuesta:', typeof data);
-              console.log('Es array?:', Array.isArray(data));
-              console.log('Claves del objeto:', Object.keys(data));
-              console.log('Valores del objeto:', Object.values(data));
               
               // Intentar diferentes estructuras de respuesta
               let fields = null;
               
               // ESTRUCTURA ESPECÍFICA DE WAPF (Advanced Product Fields)
               if (data && data.field_groups && data.field_groups.fields) {
-                console.log('Campos encontrados en field_groups.fields');
                 fields = data.field_groups.fields;
               }
               // Si la respuesta es un array directo
@@ -209,7 +198,6 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
                 const keys = Object.keys(data);
                 for (const key of keys) {
                   if (Array.isArray(data[key])) {
-                    console.log(`Encontrado array de campos en la propiedad: ${key}`);
                     fields = data[key];
                     break;
                   }
@@ -227,31 +215,12 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
               }
               
               if (fields) {
-                console.log('Campos encontrados y procesados:', fields);
-                // Log de cada campo para debug
-                fields.forEach(field => {
-                  console.log('Campo individual:', {
-                    id: field.id,
-                    label: field.label,
-                    title: field.title,
-                    name: field.name,
-                    type: field.type,
-                    required: field.required,
-                    pricing: field.pricing,
-                    options: field.options
-                  });
-                });
                 setProductAddons(fields);
                 initializeAddonValues(fields);
-                return;
-              } else {
-                console.log('No se pudieron extraer campos de la respuesta');
               }
-            } else {
-              console.log('La API devolvió un error:', response.status, response.statusText);
             }
           } catch (error) {
-            console.log('Error obteniendo campos via API:', error);
+            console.error('Error obteniendo campos via API:', error);
           }
         }
       }
@@ -259,17 +228,12 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
     
     // Si no encontramos campos via meta_data, verificar si están directamente en el producto
     if (product.product_fields) {
-      console.log('Campos encontrados en product.product_fields:', product.product_fields);
       setProductAddons(product.product_fields);
       initializeAddonValues(product.product_fields);
     } else if (product.addons) {
-      console.log('Campos encontrados en product.addons:', product.addons);
       setProductAddons(product.addons);
       initializeAddonValues(product.addons);
     }
-    
-    console.log('=== ESTADO FINAL DE ADDONS ===');
-    console.log('productAddons establecidos:', productAddons);
   };
 
   const initializeAddonValues = (fields) => {
@@ -292,43 +256,51 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         defaultValues[fieldId] = '';
       }
     });
-    console.log('Valores iniciales de addons:', defaultValues);
     setAddonValues(defaultValues);
   };
 
-  const handleAttributeChange = (attributeName, value) => {
-    const newAttributes = {
-      ...selectedAttributes,
-      [attributeName]: value
-    };
-    setSelectedAttributes(newAttributes);
-    
-    // Buscar variación que coincida con los atributos seleccionados
-    findMatchingVariation(newAttributes);
-  };
+  const handleAttributeChange = useCallback((attributeName, value) => {
+    setSelectedAttributes(prev => {
+      const newAttributes = {
+        ...prev,
+        [attributeName]: value
+      };
+      
+      // Buscar variación que coincida en el siguiente render
+      setTimeout(() => findMatchingVariation(newAttributes), 0);
+      
+      return newAttributes;
+    });
+  }, [variations]);
 
-  const findMatchingVariation = (attributes) => {
+  const findMatchingVariation = useCallback((attributes) => {
     if (!variations || variations.length === 0) return;
     
     const matching = variations.find(variation => {
       return variation.attributes.every(attr => {
+        // Normalizar nombres de atributos
         const normalizedAttrName = attr.name.toLowerCase().replace(/-/g, ' ');
         const selectedValue = attributes[attr.name] || attributes[normalizedAttrName];
-        return selectedValue == attr.option;
+        
+        // Comparar valores normalizados también
+        const normalizedOption = attr.option.toLowerCase();
+        const normalizedSelected = selectedValue?.toLowerCase();
+        
+        return normalizedOption === normalizedSelected || selectedValue == attr.option;
       });
     });
     
     setSelectedVariation(matching || null);
-  };
+  }, [variations]);
 
-  const handleAddonChange = (fieldId, value) => {
+  const handleAddonChange = useCallback((fieldId, value) => {
     setAddonValues(prev => ({
       ...prev,
       [fieldId]: value
     }));
-  };
+  }, []);
 
-  const handleFileUpload = (fieldId, file) => {
+  const handleFileUpload = useCallback((fieldId, file) => {
     if (file) {
       setAddonFiles(prev => ({
         ...prev,
@@ -339,9 +311,10 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         [fieldId]: file.name
       }));
     }
-  };
+  }, []);
 
-  const calculateAddonPrice = () => {
+  // Memorizar el cálculo del precio de addons
+  const addonPrice = useMemo(() => {
     let addonTotal = 0;
     
     productAddons.forEach(addon => {
@@ -395,9 +368,10 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
     });
     
     return addonTotal;
-  };
+  }, [productAddons, addonValues, quantity]);
 
-  const updatePrice = () => {
+  // Memorizar el precio total
+  const totalPrice = useMemo(() => {
     let basePrice = 0;
     
     if (selectedVariation && selectedVariation.price) {
@@ -406,9 +380,8 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
       basePrice = parseFloat(product.price);
     }
     
-    const addonPrice = calculateAddonPrice();
-    setTotalPrice((basePrice + addonPrice) * quantity);
-  };
+    return (basePrice + addonPrice) * quantity;
+  }, [selectedVariation, product, addonPrice, quantity]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('es-CL', {
@@ -462,13 +435,43 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         const value = addonValues[fieldId];
         
         if (value && !(Array.isArray(value) && value.length === 0)) {
+          // Calcular el precio del addon
+          let addonPrice = 0;
+          let priceType = 'flat_fee';
+          
+          // Para WAPF, el precio puede estar en addon.pricing
+          if (addon.pricing && addon.pricing.enabled && addon.pricing.amount) {
+            addonPrice = parseFloat(addon.pricing.amount);
+            priceType = addon.pricing.type || 'fixed';
+          }
+          // Precio tradicional
+          else if (addon.price) {
+            addonPrice = parseFloat(addon.price);
+            priceType = addon.price_type || 'flat_fee';
+          }
+          
+          // Para campos con opciones, buscar el precio de la opción seleccionada
+          if ((addon.options?.choices || addon.options) && Array.isArray(addon.options?.choices || addon.options)) {
+            const options = addon.options?.choices || addon.options;
+            options.forEach(option => {
+              const isSelected = Array.isArray(value) 
+                ? value.includes(option.label || option.value)
+                : value === (option.label || option.value);
+                
+              if (isSelected && (option.pricing_amount || option.price)) {
+                addonPrice = parseFloat(option.pricing_amount || option.price);
+                priceType = option.pricing_type || option.price_type || 'flat_fee';
+              }
+            });
+          }
+          
           // Agregar el campo a meta_data
           addonMetaData.push({
             key: addon.name || addon.title,
             value: Array.isArray(value) ? value.join(', ') : value,
             display: addon.title || addon.name,
-            price: addon.price || 0,
-            price_type: addon.price_type || 'flat_fee'
+            price: addonPrice,
+            price_type: priceType
           });
         }
       });
@@ -491,7 +494,9 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
           // Agregar datos de Advanced Product Fields
           productAddons: addonMetaData,
           addonValues: addonValues,
-          addonFiles: Object.keys(addonFiles).length > 0 ? addonFiles : null
+          addonFiles: Object.keys(addonFiles).length > 0 ? addonFiles : null,
+          // Agregar el precio total de los addons
+          addonsPrice: addonPrice
         }
       };
 
@@ -711,7 +716,6 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
         );
         
       default:
-        console.log(`Tipo de campo no reconocido: ${addon.type}`);
         return null;
     }
   };
@@ -766,6 +770,14 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
                   <p className="product-description" 
                      dangerouslySetInnerHTML={{ __html: product.description }} />
                 )}
+                {/* Mostrar precio actual */}
+                <div className="header-price">
+                  <span className="price-label">Precio: </span>
+                  <span className="price-value">{formatPrice(totalPrice / quantity)}</span>
+                  {selectedVariation && selectedVariation.attributes && (
+                    <span className="price-variant"> - {selectedVariation.attributes.map(attr => attr.option).join(', ')}</span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -779,7 +791,16 @@ const CustomizationModal = ({ product, isOpen, onClose }) => {
                       <p className="section-description">{attribute.description}</p>
                     )}
                     <div className="attribute-options">
-                      {attribute.options.map(option => (
+                      {attribute.options
+                        .sort((a, b) => {
+                          // Si es el atributo de tamaño, ordenar para que Familiar aparezca primero
+                          if (attribute.name.toLowerCase() === 'tamaño' || attribute.name.toLowerCase() === 'tamano') {
+                            if (a.toLowerCase() === 'familiar') return -1;
+                            if (b.toLowerCase() === 'familiar') return 1;
+                          }
+                          return 0;
+                        })
+                        .map(option => (
                         <label key={option} className="attribute-option">
                           <input
                             type="radio"

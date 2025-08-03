@@ -205,6 +205,7 @@
 
 .product-details {
   flex: 1;
+  min-width: 0; /* Importante para que el texto se trunque correctamente */
 }
 
 .product-details h3 {
@@ -214,10 +215,72 @@
   font-weight: 700;
 }
 
+/* Descripción del producto - Mejorada */
 .product-description {
   color: var(--text-secondary);
   font-size: 0.95rem;
   line-height: 1.6;
+  margin: 0 0 1rem 0;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Asegurar que el HTML interno se muestre correctamente */
+.product-description * {
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.product-description p {
+  display: block !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.product-description p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.product-description ul,
+.product-description ol {
+  margin-left: 1.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.product-description li {
+  margin-bottom: 0.25rem !important;
+}
+
+/* Precio en el header */
+.header-price {
+  margin-top: 1rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.header-price .price-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.header-price .price-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.header-price .price-variant {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 /* Customization sections */
@@ -774,6 +837,31 @@
     height: 140px;
   }
   
+  .product-details {
+    text-align: left;
+  }
+  
+  .product-details h3 {
+    font-size: 1.25rem;
+  }
+  
+  /* Descripción más legible en mobile */
+  .product-description {
+    font-size: 0.9rem !important;
+    line-height: 1.6 !important;
+    color: #555555 !important;
+  }
+  
+  .header-price {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .header-price .price-value {
+    font-size: 1.375rem;
+  }
+  
   .attribute-options {
     grid-template-columns: 1fr;
   }
@@ -795,6 +883,17 @@
   
   .total-price {
     font-size: 1.75rem;
+  }
+  
+  /* Inputs más grandes en mobile para mejor usabilidad */
+  .addon-text-input,
+  .addon-textarea,
+  .addon-number-input,
+  .addon-email-input,
+  .addon-select,
+  .addon-date-input {
+    font-size: 16px; /* Previene zoom en iOS */
+    padding: 1.125rem 1.25rem;
   }
 }
 

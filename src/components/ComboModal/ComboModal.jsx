@@ -254,16 +254,26 @@ const ComboModal = ({ product, isOpen, onClose }) => {
         });
       }
       
-      // Crear el item del carrito
+      // Crear el item del carrito con la estructura esperada por CheckoutPage
       const cartItem = {
-        id: product.id,
+        // Usar un ID único para el item del carrito
+        id: `${product.id}-combo-${Date.now()}`,
+        // IMPORTANTE: Agregar productId que es lo que espera CheckoutPage
+        productId: product.id,
+        // Mantener el resto de la información
         name: product.name,
         price: parseFloat(product.price),
         quantity: quantity,
         image: product.images?.[0]?.src || null,
-        type: 'combo',
-        comboSelections: comboInfo.selections,
-        comboConfig: comboConfig
+        // Agregar customizations en el formato esperado
+        customizations: {
+          type: 'combo',
+          comboSelections: comboInfo.selections,
+          comboConfig: comboConfig,
+          // Agregar información adicional para el pedido
+          specialInstructions: '', // Por si se necesita después
+          productAddons: [] // Por compatibilidad con el checkout
+        }
       };
       
       // Agregar al carrito
@@ -393,10 +403,8 @@ const ComboModal = ({ product, isOpen, onClose }) => {
                 
                 <div className="product-info">
                   <h4 className="product-name">{prod.name}</h4>
-                  {prod.short_description && (
-                    <p className="product-description" 
-                       dangerouslySetInnerHTML={{ __html: prod.short_description }} />
-                  )}
+                  <p className="product-description" 
+                     dangerouslySetInnerHTML={{ __html: prod.short_description || prod.description || '' }} />
                 </div>
               </div>
             );

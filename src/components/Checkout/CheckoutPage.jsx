@@ -324,6 +324,8 @@ const CheckoutPage = () => {
           productId: item.productId,
           variationId: item.variationId,
           quantity: item.quantity,
+          price: item.price, // Incluir el precio con addons
+          name: item.name, // Incluir el nombre para las fees
           customizations: item.customizations
         })),
         address: orderType === 'delivery' ? formData.address : null,
@@ -421,8 +423,7 @@ const CheckoutPage = () => {
           <p className="checkout-success-message">
             {orderType === 'delivery' 
               ? `Tu pedido será entregado en ${storeInfo?.deliveryTime || '30-45 minutos'}`
-            : `Te avisaremos cuando tu pedido esté listo para retiro`
-}
+            : `Te avisaremos cuando tu pedido esté listo para retiro`}
           </p>
           <div className="checkout-success-details">
             <p>Te hemos enviado un email con los detalles de tu pedido.</p>

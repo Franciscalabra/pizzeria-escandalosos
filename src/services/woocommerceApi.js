@@ -61,7 +61,40 @@ class WooCommerceAPI {
       ...params
     }).toString();
     
-    return this.request(`products?${queryParams}`);
+    const products = await this.request(`products?${queryParams}`);
+    
+    // Para productos variables, cargar las variaciones y calcular el rango de precios
+    const productsWithPriceRange = await Promise.all(
+      products.map(async (product) => {
+        if (product.type === 'variable' && product.variations && product.variations.length > 0) {
+          try {
+            // Obtener las variaciones del producto
+            const variations = await this.getProductVariations(product.id);
+            
+            if (variations && variations.length > 0) {
+              // Calcular precio mínimo y máximo
+              const prices = variations.map(v => parseFloat(v.price)).filter(p => !isNaN(p));
+              
+              if (prices.length > 0) {
+                product.price_range = {
+                  min_price: Math.min(...prices),
+                  max_price: Math.max(...prices)
+                };
+                
+                // También actualizar el precio base al máximo para mostrar el precio familiar
+                product.display_price = Math.max(...prices);
+              }
+            }
+          } catch (error) {
+            console.error(`Error obteniendo variaciones para producto ${product.id}:`, error);
+          }
+        }
+        
+        return product;
+      })
+    );
+    
+    return productsWithPriceRange;
   }
 
   // Obtener un producto por ID
@@ -309,6 +342,22 @@ class WooCommerceAPI {
           lineItem.variation_id = parseInt(item.variationId);
         }
 
+        // IMPORTANTE: Si el item tiene un precio personalizado (con addons), usar ese precio
+        if (item.price) {
+          // Opción 1: Enviar precio total (producto + addons)
+          lineItem.total = (parseFloat(item.price) * parseInt(item.quantity)).toString();
+          lineItem.subtotal = lineItem.total;
+          
+          // Opción 2 (comentada): Si quieres desglosar, envía solo el precio base
+          // y deja que Advanced Product Fields maneje los addons
+          /*
+          // Calcular precio base sin addons
+          const basePrice = parseFloat(item.price) - (item.customizations?.addonsPrice || 0);
+          lineItem.total = (basePrice * parseInt(item.quantity)).toString();
+          lineItem.subtotal = lineItem.total;
+          */
+        }
+
         // Si tiene meta data (personalizaciones)
         if (item.customizations) {
           lineItem.meta_data = [];
@@ -330,6 +379,30 @@ class WooCommerceAPI {
                 display_key: addon.display || addon.key,
                 display_value: addon.value
               });
+            });
+          }
+
+          // Si es un combo, agregar información de las selecciones
+          if (item.customizations.type === 'combo' && item.customizations.comboSelections) {
+            // Agregar cada categoría del combo como meta data
+            Object.entries(item.customizations.comboSelections).forEach(([categoryId, selections]) => {
+              const categoryInfo = item.customizations.comboConfig?.[categoryId];
+              if (categoryInfo && selections.length > 0) {
+                // Crear una lista legible de los productos seleccionados
+                const selectedNames = selections.map(sel => sel.name).join(', ');
+                lineItem.meta_data.push({
+                  key: `combo_${categoryInfo.name || categoryId}`,
+                  value: selectedNames,
+                  display_key: categoryInfo.name || `Categoría ${categoryId}`,
+                  display_value: selectedNames
+                });
+              }
+            });
+            
+            // Agregar un indicador de que es un combo
+            lineItem.meta_data.push({
+              key: '_is_combo',
+              value: 'true'
             });
           }
         }
